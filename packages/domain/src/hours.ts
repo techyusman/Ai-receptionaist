@@ -36,6 +36,29 @@ export function localClock(at: Date, timeZone: string): LocalClock {
   };
 }
 
+/**
+ * The UTC instant for a wall-clock time in a time zone ("end of Nov 30 in New York").
+ * In a spring-forward gap it lands just after the gap; in a fall-back overlap, on the first pass.
+ */
+export function zonedTimeToUtc(date: string, hhmm: string, timeZone: string): Date {
+  const [y, m, d] = date.split("-").map(Number) as [number, number, number];
+  const minutes = toMinutes(hhmm);
+  const wanted = Date.UTC(y, m - 1, d, Math.floor(minutes / 60), minutes % 60);
+  /** Wall clock read as if it were UTC, minus the real instant: the zone's offset at `t`. */
+  const offsetAt = (t: number) => {
+    const c = localClock(new Date(t), timeZone);
+    const [cy, cm, cd] = c.date.split("-").map(Number) as [number, number, number];
+    return Date.UTC(cy, cm - 1, cd, Math.floor(c.minutes / 60), c.minutes % 60) - Math.floor(t / 60_000) * 60_000;
+  };
+  const before = wanted - offsetAt(wanted - 86_400_000);
+  const after = wanted - offsetAt(wanted + 86_400_000);
+  const matches = (t: number) => offsetAt(t) === wanted - t;
+  if (matches(before) && matches(after)) return new Date(Math.min(before, after)); // overlap: first pass
+  if (matches(before)) return new Date(before);
+  if (matches(after)) return new Date(after);
+  return new Date(before); // gap: the pre-change offset lands just after it
+}
+
 export function addDays(date: string, days: number): string {
   const [y, m, d] = date.split("-").map(Number) as [number, number, number];
   const t = new Date(Date.UTC(y, m - 1, d + days));

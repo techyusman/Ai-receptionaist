@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { describeDay, findOverlaps, isOpenAt, localClock, type Shift } from "./hours.ts";
+import { describeDay, findOverlaps, isOpenAt, localClock, zonedTimeToUtc, type Shift } from "./hours.ts";
 import { formatMoney, maskPhone, prettyPhone, taxOn } from "./money.ts";
 
 const NY = "America/New_York";
@@ -46,6 +46,14 @@ test("overlapping shifts are found, including overnight spills", () => {
   assert.equal(findOverlaps([...week, { weekday: 6, opens: "00:00", closes: "02:00" }]).length, 1);
   // Saturday night into Sunday wraps the week.
   assert.equal(findOverlaps([{ weekday: 6, opens: "22:00", closes: "02:00" }, { weekday: 0, opens: "01:00", closes: "03:00" }]).length, 1);
+});
+
+test("local wall-clock times convert to UTC across DST", () => {
+  assert.equal(zonedTimeToUtc("2026-11-30", "23:59", NY).toISOString(), "2026-12-01T04:59:00.000Z"); // EST, UTC-5
+  assert.equal(zonedTimeToUtc("2026-07-04", "09:00", NY).toISOString(), "2026-07-04T13:00:00.000Z"); // EDT, UTC-4
+  assert.equal(zonedTimeToUtc("2026-03-08", "02:30", NY).toISOString(), "2026-03-08T07:30:00.000Z"); // in the spring gap: 03:30 EDT
+  assert.equal(zonedTimeToUtc("2026-10-22", "12:00", "Asia/Kolkata").toISOString(), "2026-10-22T06:30:00.000Z");
+  assert.equal(zonedTimeToUtc("2026-11-01", "01:30", NY).toISOString(), "2026-11-01T05:30:00.000Z"); // fall-back overlap: first pass (EDT)
 });
 
 test("money and phone helpers", () => {
