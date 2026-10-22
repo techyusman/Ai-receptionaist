@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   // The domain package ships TypeScript source (shared with the API and voice tools).
-  transpilePackages: ["@receptionist/domain"],
+  transpilePackages: ["@receptionist/domain", "@receptionist/contracts"],
   turbopack: {
     rules: {
       "*.css": {

@@ -141,7 +141,7 @@ test("schema invariants hold on a real Postgres", async () => {
   await expectError('read-back needs totals for this version', A,
     (tx) => tx.query(`update orders set local_status = 'READY_FOR_CONFIRMATION' where id = $1`, [o.order]), /read_back_has_totals/);
   const priceAndConfirm = (tx) => tx.query(`update orders set subtotal_minor = 550 * (select count(*) from order_items where order_id = $1),
-      total_minor = 550 * (select count(*) from order_items where order_id = $1), totals_version = version, totals_calculated_at = now(),
+      total_minor = 550 * (select count(*) from order_items where order_id = $1), totals_version = version, totals_calculated_at = now(), totals_source = 'SQUARE',
       local_status = 'READY_FOR_CONFIRMATION' where id = $1`, [o.order])
     .then(() => tx.query(`update orders set local_status = 'CUSTOMER_CONFIRMED', confirmed_version = version, confirmed_at = now() where id = $1`, [o.order]));
   await as(A, priceAndConfirm);
@@ -152,11 +152,20 @@ test("schema invariants hold on a real Postgres", async () => {
     ok('an edit after confirmation reverts to DRAFT and voids it', s.s === 'DRAFT' && s.v === 4 && s.cv === 3, JSON.stringify(s));
   });
   await expectError('cannot confirm a stale version', A,
-    (tx) => tx.query(`update orders set local_status = 'READY_FOR_CONFIRMATION', totals_version = 3, total_minor = 1100 where id = $1`, [o.order]),
+    (tx) => tx.query(`update orders set local_status = 'READY_FOR_CONFIRMATION', totals_version = 3, total_minor = 1100, totals_source = 'SQUARE' where id = $1`, [o.order]),
     /read_back_has_totals/);
   await as(A, priceAndConfirm);
   await as({ ...A, actor: 'SYSTEM' }, (tx) => tx.query(`update orders set local_status = 'SUBMISSION_PENDING', submission_attempts = 1, last_submit_attempt_at = now() where id = $1`, [o.order]));
   ok('a confirmed, priced order can be submitted', true);
+  await expectError('a real order can never carry an estimated total', SYS,
+    (tx) => tx.query(`insert into orders (restaurant_id, location_id, currency, pos_mode, is_test, total_minor, totals_source)
+      values ($1, $2, 'USD', 'DASHBOARD_TICKET', false, 100, 'ESTIMATE')`, [ids.ra, ids.la]), /estimate_only_for_tests/);
+  await expectError('a total needs a source', SYS,
+    (tx) => tx.query(`insert into orders (restaurant_id, location_id, currency, pos_mode, is_test, total_minor)
+      values ($1, $2, 'USD', 'DASHBOARD_TICKET', true, 100)`, [ids.ra, ids.la]), /totals_have_source/);
+  await as(SYS, (tx) => tx.query(`insert into orders (restaurant_id, location_id, currency, pos_mode, is_test, total_minor, totals_source)
+      values ($1, $2, 'USD', 'DASHBOARD_TICKET', true, 100, 'ESTIMATE')`, [ids.ra, ids.la]));
+  ok('a test order may carry an estimate', true);
   await expectError('submitted content is frozen', A, (tx) => addLine(tx, 3), /can no longer change/);
   await expectError('submitted customer details are frozen', A,
     (tx) => tx.query(`update orders set customer_name = 'Someone Else' where id = $1`, [o.order]), /can no longer change/);

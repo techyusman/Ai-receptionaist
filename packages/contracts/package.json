@@ -1,0 +1,18 @@
+{
+  "name": "@receptionist/contracts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "What the API returns and accepts: response types, the role permission table and zod input schemas. Shared by the server, the voice tools and the dashboard.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "node --test \"src/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@receptionist/domain": "^0.0.0",
+    "zod": "^4.6.7"
+  }
+}

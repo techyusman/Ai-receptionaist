@@ -26,12 +26,14 @@ const INT8 = 20;
 const TIMESTAMPTZ = 1184;
 const TIMESTAMP = 1114;
 const DATE = 1082;
+const NUMERIC = 1700;
 const types = {
   getTypeParser(oid: number, format?: "text" | "binary") {
     if (oid === INT8) return (v: string) => Number(v);
     if (oid === TIMESTAMPTZ) return (v: string) => new Date(v).toISOString();
     if (oid === TIMESTAMP) return (v: string) => new Date(`${v}Z`).toISOString();
     if (oid === DATE) return (v: string) => v;
+    if (oid === NUMERIC) return (v: string) => Number(v);
     return pg.types.getTypeParser(oid, format as "text");
   },
 };

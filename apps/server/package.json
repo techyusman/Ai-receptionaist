@@ -1,0 +1,36 @@
+{
+  "name": "@receptionist/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The API, the Twilio and Square webhooks, the voice gateway and the background worker.",
+  "scripts": {
+    "start": "node src/main.ts",
+    "worker": "node src/worker.ts",
+    "dev:stack": "node scripts/dev-stack.ts",
+    "seed": "node scripts/seed.ts",
+    "test": "node --test --test-concurrency=1 \"test/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@fastify/cors": "^11.3.1",
+    "@fastify/formbody": "^9.0.1",
+    "@fastify/rate-limit": "^11.2.1",
+    "@fastify/websocket": "^11.3.4",
+    "@receptionist/contracts": "^0.0.0",
+    "@receptionist/db": "^0.0.0",
+    "@receptionist/domain": "^0.0.0",
+    "fastify": "^5.12.7",
+    "jose": "^6.2.13",
+    "libphonenumber-js": "^1.13.15",
+    "pg-boss": "^12.38.0",
+    "resend": "^6.34.1",
+    "twilio": "^6.2.0",
+    "ws": "^8.22.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "@types/ws": "^8.18.0"
+  }
+}
