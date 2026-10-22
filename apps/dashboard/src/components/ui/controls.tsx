@@ -13,12 +13,14 @@ export function Select({
   options,
   placeholder = "Choose…",
   className,
+  "aria-label": ariaLabel,
   ...props
-}: React.ComponentProps<typeof RSelect.Root> & { options: Option[]; placeholder?: string; className?: string }) {
+}: React.ComponentProps<typeof RSelect.Root> & { options: Option[]; placeholder?: string; className?: string; "aria-label"?: string }) {
   const field = useFieldProps();
   return (
     <RSelect.Root {...props}>
       <RSelect.Trigger
+        aria-label={ariaLabel}
         id={field.id}
         aria-describedby={field["aria-describedby"]}
         aria-invalid={field["aria-invalid"]}

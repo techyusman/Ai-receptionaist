@@ -66,6 +66,10 @@ export const controlClass = cn(
 // :read-only matches every non-editable element (buttons too), so only text inputs get it.
 const readOnlyClass = "read-only:bg-surface-muted";
 
+/** Date and time fields focus an inner segment, so :focus-visible never matches the field itself. */
+export const segmentedFocus = "focus-within:outline-2 focus-within:outline-solid focus-within:outline-offset-2 focus-within:outline-focus";
+const segmented = new Set(["date", "time", "datetime-local", "month", "week"]);
+
 export function Input({
   className,
   inputSize = "md",
@@ -74,7 +78,7 @@ export function Input({
   return (
     <input
       {...useFieldProps()}
-      className={cn(controlClass, readOnlyClass, inputSize === "lg" ? "h-12" : "h-10", className)}
+      className={cn(controlClass, readOnlyClass, inputSize === "lg" ? "h-12" : "h-10", segmented.has(props.type ?? "") && segmentedFocus, className)}
       {...props}
     />
   );
