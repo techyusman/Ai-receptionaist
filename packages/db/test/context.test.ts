@@ -14,7 +14,7 @@ after(async () => {
 test("migrations are applied once and a second run does nothing", async () => {
   const again = await migrate(t.pool);
   assert.deepEqual(again.applied, []);
-  assert.deepEqual(again.skipped, ["0001_init.sql", "0002_backend_columns.sql"]);
+  assert.deepEqual(again.skipped, ["0001_init.sql", "0002_backend_columns.sql", "0003_retention_and_erasure.sql"]);
 });
 
 test("withTenant sees one restaurant, withSystem sees all, withUser sees own memberships", async () => {

@@ -85,12 +85,12 @@ export async function markNeedsReauth(deps: Deps, tx: import("@receptionist/db")
 }
 
 /** Spends the refresh token for a new pair, under a row lock. "reauth" means the connection needs signing in again. */
-export async function refreshTokens(deps: Deps, locationId: string): Promise<"ok" | "reauth" | "transient"> {
+export async function refreshTokens(deps: Deps, locationId: string, aheadMs = REFRESH_AHEAD_MS): Promise<"ok" | "reauth" | "transient"> {
   return withSystem(deps.db, async (tx) => {
     const r = await maybeOne<{ id: string; restaurant_id: string; location_id: string; environment: SquareEnvironment; refresh_token_ct: Buffer; key_version: number; token_expires_at: string | null }>(
       tx, "select id, restaurant_id, location_id, environment, refresh_token_ct, key_version, token_expires_at from pos_integrations where location_id = $1 and status = 'CONNECTED' for update", [locationId]);
     if (!r) return "reauth";
-    if (r.token_expires_at && new Date(r.token_expires_at).getTime() - deps.now().getTime() >= REFRESH_AHEAD_MS) return "ok"; // someone else just did it
+    if (r.token_expires_at && new Date(r.token_expires_at).getTime() - deps.now().getTime() >= aheadMs) return "ok"; // someone else just did it
     const api = squareFor(deps, r.environment);
     try {
       const refreshToken = deps.cipher.decrypt(r.refresh_token_ct, `${r.id}:refresh`, r.key_version);

@@ -53,6 +53,8 @@ const schema = z.object({
 
   RESEND_API_KEY: optionalString,
   EMAIL_FROM: z.string().default("Receptionist <no-reply@example.com>"),
+  // A rough per-minute cost (in minor units) used to estimate what each call cost. 0 leaves costs unestimated.
+  ESTIMATED_COST_PER_MINUTE_MINOR: z.coerce.number().int().min(0).default(0),
   SENTRY_DSN: optionalString,
 });
 

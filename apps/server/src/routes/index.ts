@@ -14,9 +14,11 @@ import { registerMenuRoutes } from "./menu.ts";
 import { registerNoticeRoutes } from "./notices.ts";
 import { registerOrderRoutes } from "./orders.ts";
 import { registerPhoneRoutes } from "./phone.ts";
+import { registerPrivacyRoutes } from "./privacy.ts";
 import { registerSetupRoutes } from "./setup.ts";
 import { registerSquareRoutes } from "./square.ts";
 import { registerTeamRoutes } from "./team.ts";
+import { registerTestAgentRoutes } from "./test-agent.ts";
 
 export async function registerRoutes(api: FastifyInstance, deps: Deps): Promise<void> {
   registerMeRoutes(api, deps);
@@ -33,7 +35,9 @@ export async function registerRoutes(api: FastifyInstance, deps: Deps): Promise<
   registerAnalyticsRoutes(api, deps);
   registerTeamRoutes(api, deps);
   registerAdminRoutes(api, deps);
+  registerPrivacyRoutes(api, deps);
   registerSetupRoutes(api, deps);
   registerSquareRoutes(api, deps);
+  registerTestAgentRoutes(api, deps);
   registerLiveRoutes(api, deps);
 }

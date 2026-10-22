@@ -199,12 +199,13 @@ export const supportGrantInput = z.object({
 export const testSearchQuery = z.object({ q: z.string().trim().min(1).max(80) });
 export const testLineInput = z.object({
   itemId: uuid,
-  variationId: uuid,
+  variationId: uuid.optional(),
   quantity: z.number().int().min(1).max(99),
-  modifiers: z.array(z.object({ modifierId: uuid, quantity: z.number().int().min(1).max(20).default(1) })).max(40).default([]),
-  note: z.string().trim().max(200).optional(),
+  modifiers: z.array(z.object({ listId: uuid, optionId: uuid, quantity: z.number().int().min(1).max(20).optional(), parentOptionId: uuid.optional() })).max(40),
 });
 export const testCustomerInput = z.object({ name: z.string().trim().min(1, "Ask for the caller's name.").max(80), phone: z.string().trim().min(7).max(20) });
 export const testConfirmInput = z.object({ version: z.number().int().min(1) });
+
+export const eraseInput = z.object({ phone: z.string().trim().min(7).max(25) });
 
 export const PAGE_SIZE = 25;
