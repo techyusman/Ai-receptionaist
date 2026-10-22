@@ -52,6 +52,7 @@
   --spacing: 4px;
 
   --radius-*: initial;
+  --radius-xs: var(--ds-radius-xs);
   --radius-sm: var(--ds-radius-sm);
   --radius-md: var(--ds-radius-md);
   --radius-lg: var(--ds-radius-lg);

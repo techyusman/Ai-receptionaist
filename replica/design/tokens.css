@@ -21,6 +21,10 @@
   --ds-success-subtle: #e5f5ec;
   --ds-warning: #975300;
   --ds-warning-subtle: #fff3dc;
+  --ds-chart-series-1: #2a78d6;
+  --ds-chart-series-2: #eb6834;
+  --ds-chart-grid: #e7eaee;
+  --ds-chart-axis: #b9c0ca;
   --ds-font-sans: var(--font-inter), Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --ds-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --ds-type-xs-size: 12px;
@@ -41,6 +45,7 @@
   --ds-type-display-size: 40px;
   --ds-type-display-line: 44px;
   --ds-type-display-weight: 700;
+  --ds-radius-xs: 4px;
   --ds-radius-sm: 6px;
   --ds-radius-md: 10px;
   --ds-radius-lg: 16px;
@@ -80,6 +85,10 @@
     --ds-success-subtle: #10281c;
     --ds-warning: #f1b555;
     --ds-warning-subtle: #33250d;
+    --ds-chart-series-1: #3987e5;
+    --ds-chart-series-2: #d95926;
+    --ds-chart-grid: #262c36;
+    --ds-chart-axis: #3d4554;
   }
 }
 
@@ -105,6 +114,10 @@
   --ds-success-subtle: #10281c;
   --ds-warning: #f1b555;
   --ds-warning-subtle: #33250d;
+  --ds-chart-series-1: #3987e5;
+  --ds-chart-series-2: #d95926;
+  --ds-chart-grid: #262c36;
+  --ds-chart-axis: #3d4554;
 }
 
 @media (prefers-reduced-motion: reduce) {

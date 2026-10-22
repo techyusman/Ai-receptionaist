@@ -23,7 +23,9 @@ for (const r of roles) {
   if (!(r in tailwindName)) throw new Error(`no Tailwind name for colour role "${r}"`);
 }
 
-const colorVars = (mode) => roles.map((r) => `  --ds-${r}: ${t.color[mode][r]};`).join('\n');
+// Chart roles (series, grid, axis) come from the dataviz method and swap with the theme too.
+const chartVars = (mode) => Object.entries(t.chart?.[mode] ?? {}).map(([k, v]) => `  --ds-chart-${k}: ${v};`);
+const colorVars = (mode) => [...roles.map((r) => `  --ds-${r}: ${t.color[mode][r]};`), ...chartVars(mode)].join('\n');
 
 const staticVars = [
   `  --ds-font-sans: ${t.font.sans};`,
