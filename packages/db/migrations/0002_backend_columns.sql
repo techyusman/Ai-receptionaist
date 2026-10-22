@@ -26,3 +26,7 @@ alter table orders
 -- them with the wall clock rather than the transaction's start time.
 alter table order_events alter column occurred_at set default clock_timestamp();
 alter table order_events alter column created_at set default clock_timestamp();
+
+-- Names shown on the Square page, captured when the restaurant connects and picks a location.
+alter table pos_integrations add column merchant_name text;
+alter table pos_integrations add column pos_location_name text;

@@ -15,6 +15,7 @@ import { registerNoticeRoutes } from "./notices.ts";
 import { registerOrderRoutes } from "./orders.ts";
 import { registerPhoneRoutes } from "./phone.ts";
 import { registerSetupRoutes } from "./setup.ts";
+import { registerSquareRoutes } from "./square.ts";
 import { registerTeamRoutes } from "./team.ts";
 
 export async function registerRoutes(api: FastifyInstance, deps: Deps): Promise<void> {
@@ -33,5 +34,6 @@ export async function registerRoutes(api: FastifyInstance, deps: Deps): Promise<
   registerTeamRoutes(api, deps);
   registerAdminRoutes(api, deps);
   registerSetupRoutes(api, deps);
+  registerSquareRoutes(api, deps);
   registerLiveRoutes(api, deps);
 }

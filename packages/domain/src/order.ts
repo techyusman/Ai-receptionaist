@@ -367,7 +367,8 @@ export function rotateIdempotencyKey(order: Order, key: string): Order {
   return { ...order, idempotencyKey: key };
 }
 
-export function accept(order: Order, staffUserId: string, ctx: Ctx): Result {
+/** staffUserId is null when the restaurant's system acknowledged the order (a Square webhook), not a person on the dashboard. */
+export function accept(order: Order, staffUserId: string | null, ctx: Ctx): Result {
   return move(order, "RECEIVED_BY_RESTAURANT", ctx, { receivedAt: ctx.at, receivedBy: staffUserId });
 }
 

@@ -7,6 +7,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { bearerToken } from "./http.ts";
 import type { Deps } from "./deps.ts";
 import { toProblem } from "./problems.ts";
+import { registerPublicRoutes } from "./routes/public.ts";
 import { registerRoutes } from "./routes/index.ts";
 
 export async function buildApp(deps: Deps): Promise<FastifyInstance> {
@@ -64,6 +65,8 @@ export async function buildApp(deps: Deps): Promise<FastifyInstance> {
       return reply.status(503).send({ ok: false });
     }
   });
+
+  registerPublicRoutes(app, deps);
 
   // Everything under /api/v1 needs a valid Supabase token. The user row is created on first sight.
   const knownUsers = new Map<string, number>();

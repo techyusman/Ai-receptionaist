@@ -11,8 +11,11 @@ import { createJwtVerifier } from "../src/auth/jwt.ts";
 import { loadConfig, type Config } from "../src/config.ts";
 import { TokenCipher, keyFromBase64 } from "../src/crypto.ts";
 import type { Deps } from "../src/deps.ts";
+import { InlineQueue } from "../src/jobs/queue.ts";
 import { LiveBus } from "../src/live.ts";
 import { FakeEmail, FakeTwilio } from "../src/providers/fakes.ts";
+import { createSquareFactory } from "../src/providers/square-http.ts";
+import { SquareStub } from "./stubs/square-stub.ts";
 
 export const SUPABASE_URL = "https://project.supabase.test";
 const KEY_B64 = Buffer.alloc(32, 7).toString("base64");
@@ -28,13 +31,15 @@ export type Harness = {
   config: Config;
   twilio: FakeTwilio;
   email: FakeEmail;
+  jobs: InlineQueue;
+  square: SquareStub | null;
   token(user: TestUser, overrides?: { aud?: string; iss?: string; expiresIn?: string }): Promise<string>;
   call(user: TestUser | null, method: string, url: string, body?: unknown): Promise<{ status: number; body: any }>;
   setNow(d: Date | null): void;
   stop(): Promise<void>;
 };
 
-export async function startHarness(options: { configure?: (env: Record<string, string>) => void } = {}): Promise<Harness> {
+export async function startHarness(options: { configure?: (env: Record<string, string>) => void; square?: boolean } = {}): Promise<Harness> {
   const td = await startTestDatabase();
   const { publicKey, privateKey } = await generateKeyPair("ES256");
   const jwk = { ...(await exportJWK(publicKey)), kid: "test-key", alg: "ES256", use: "sig" };
@@ -52,13 +57,25 @@ export async function startHarness(options: { configure?: (env: Record<string, s
   await bus.start();
   const twilio = new FakeTwilio(config.TWILIO_AUTH_TOKEN);
   const email = new FakeEmail();
+  const jobs = new InlineQueue();
+  let square: SquareStub | null = null;
+  if (options.square) {
+    square = new SquareStub();
+    await square.start();
+  }
   let frozen: Date | null = null;
   const deps: Deps = {
     config, db, bus,
     access: new AccessService(db),
     verify: createJwtVerifier({ keys: createLocalJWKSet({ keys: [jwk] }), issuer: `${SUPABASE_URL}/auth/v1`, audience: "authenticated" }),
     cipher: new TokenCipher({ current: 1, keys: new Map([[1, keyFromBase64(KEY_B64)]]) }),
-    providers: { email, twilio, square: null, realtime: null },
+    providers: {
+      email, twilio, realtime: null,
+      square: square
+        ? createSquareFactory({ apiVersion: config.SQUARE_API_VERSION, credentials: { SANDBOX: { applicationId: "sq0idp-test", applicationSecret: "sq0csp-test" } }, baseUrls: { SANDBOX: square.url, PRODUCTION: square.url }, timeoutMs: 3000, orderTimeoutMs: 1500 })
+        : null,
+    },
+    jobs,
     now: () => frozen ?? new Date(),
   };
   const app = await buildApp(deps);
@@ -75,7 +92,7 @@ export async function startHarness(options: { configure?: (env: Record<string, s
       .sign(privateKey);
 
   return {
-    td, db, app, deps, config, twilio, email, token,
+    td, db, app, deps, config, twilio, email, jobs, square, token,
     async call(user, method, url, body) {
       const headers: Record<string, string> = {};
       if (user) headers.authorization = `Bearer ${await token(user)}`;
@@ -94,6 +111,7 @@ export async function startHarness(options: { configure?: (env: Record<string, s
     },
     async stop() {
       await app.close();
+      await square?.stop();
       await bus.close();
       await db.end().catch(() => {});
       await td.stop();
