@@ -1,0 +1,14 @@
+{
+  "name": "@receptionist/domain",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Order state machine, menu validation and opening-hours rules. Pure TypeScript, shared by the dashboard, API and voice tools.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "node --test \"src/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit -p ."
+  }
+}

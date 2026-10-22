@@ -1,9 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   cacheComponents: true,
   partialPrefetching: true,
+  // The domain package ships TypeScript source (shared with the API and voice tools).
+  transpilePackages: ["@receptionist/domain"],
   turbopack: {
     rules: {
       "*.css": {

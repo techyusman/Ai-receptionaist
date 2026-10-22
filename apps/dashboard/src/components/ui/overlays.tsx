@@ -1,7 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
-import { Dialog as RDialog, DropdownMenu as RMenu, Tooltip as RTooltip } from "radix-ui";
+import { Dialog as RDialog, DropdownMenu as RMenu, Popover as RPopover, Tooltip as RTooltip } from "radix-ui";
 import { useState } from "react";
 import { cn, focusRing } from "@/lib/cn";
 import { Button, IconButton } from "./button";
@@ -178,6 +178,36 @@ export function Tooltip({ content, children }: { content: string; children: Reac
         </RTooltip.Content>
       </RTooltip.Portal>
     </RTooltip.Root>
+  );
+}
+
+/* Popover ----------------------------------------------------------------- */
+
+export function Popover({
+  trigger,
+  title,
+  children,
+  align = "end",
+}: {
+  trigger: React.ReactNode;
+  title: string;
+  children: React.ReactNode;
+  align?: "start" | "center" | "end";
+}) {
+  return (
+    <RPopover.Root>
+      <RPopover.Trigger asChild>{trigger}</RPopover.Trigger>
+      <RPopover.Portal>
+        <RPopover.Content
+          align={align}
+          sideOffset={6}
+          aria-label={title}
+          className={cn("z-50 w-90 max-w-[calc(100vw-2rem)] rounded-lg border border-border bg-surface p-4 shadow-pop", focusRing)}
+        >
+          {children}
+        </RPopover.Content>
+      </RPopover.Portal>
+    </RPopover.Root>
   );
 }
 
