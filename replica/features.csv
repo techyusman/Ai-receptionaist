@@ -60,7 +60,7 @@ Ask for every required choice,orders,must,yes,yes,"built: domain validateSelecti
 Read back the full order with prices,orders,must,yes,yes,"Maple known bug: last item can drop; built: read-back script with every line, modifier and the total (S22)"
 Explicit yes before submit and re-confirm after any change,orders,must,partial,yes,spec FR-ORDER-009 FR-ORDER-010; built: domain + database: any edit voids confirmation and returns to DRAFT
 Capture customer name and callback number,orders,must,yes,yes,"built: name and number, read back digit by digit"
-Confirm callback number separately from caller ID,orders,must,no,no,spec FR-CUSTOMER-002
+Confirm callback number separately from caller ID,orders,must,no,partial,spec FR-CUSTOMER-002; built: domain records whether the number came from caller ID (confirmed) or was spoken; S12 shows it; the voice agent asks
 Totals from POS pricing and tax,orders,must,yes,partial,Maple quotes menu price; POS discounts can lower the receipt; built: menu prices + location tax rate stand in for Square CalculateOrder
 Pay at pickup with no payment on the call,orders,must,partial,yes,Maple: NOT on Square (pay-by-link required); yes on Toast Clover etc.; built: no payment step anywhere; 'paid at pickup' on every total
 Pickup notes and special instructions,orders,should,yes,partial,"S19 Pickup Notes; built: setting (S19), line notes on tickets; capture by the voice agent later"
@@ -68,7 +68,7 @@ Scheduled pickup orders,orders,could,yes,partial,S19 Scheduled Orders; built: se
 Cancel an order before submission,orders,should,yes,partial,built: a caller hanging up drops the draft (S22)
 Change an order after submission through staff,orders,should,no,partial,Maple: cancel and re-place; spec FR-ORDER-018; built: staff cancel with a reason (S12); re-placing is a new order
 Revalidate the order right before submission,orders,must,yes,partial,Maple order.validation_requested with expiring result; built: read-back rechecks availability and menu freshness; Square-side revalidation with the real adapter
-Idempotent submission with reconciliation,orders,must,partial,no,Maple decisions replay-safe; spec SUBMISSION_UNKNOWN
+Idempotent submission with reconciliation,orders,must,partial,partial,Maple decisions replay-safe; spec SUBMISSION_UNKNOWN; built: one key per submission enforced in domain and database (tested); the reconciliation job comes with the Square adapter
 Order sent into Square POS,orders,must,yes,partial,Maple: prepaid only; spec P0 blocker; built: Square stays locked until the P0 test is signed off; orders go to Live orders meanwhile
 Order status lifecycle,orders,must,yes,yes,"Maple 9 states; spec 13 local states; built: 13 states, transitions enforced in domain and database, every change logged"
 Tablet or dashboard fallback when the POS cannot take the order,orders,should,yes,yes,Maple ships a tablet or printer; spec §1 fallback; built: Live orders (S41) + full-screen kitchen view; staff accept each ticket
