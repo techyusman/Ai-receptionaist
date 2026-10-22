@@ -39,7 +39,7 @@ export type Harness = {
   stop(): Promise<void>;
 };
 
-export async function startHarness(options: { configure?: (env: Record<string, string>) => void; square?: boolean } = {}): Promise<Harness> {
+export async function startHarness(options: { configure?: (env: Record<string, string>) => void; square?: boolean; realtime?: boolean } = {}): Promise<Harness> {
   const td = await startTestDatabase();
   const { publicKey, privateKey } = await generateKeyPair("ES256");
   const jwk = { ...(await exportJWK(publicKey)), kid: "test-key", alg: "ES256", use: "sig" };
@@ -70,7 +70,8 @@ export async function startHarness(options: { configure?: (env: Record<string, s
     verify: createJwtVerifier({ keys: createLocalJWKSet({ keys: [jwk] }), issuer: `${SUPABASE_URL}/auth/v1`, audience: "authenticated" }),
     cipher: new TokenCipher({ current: 1, keys: new Map([[1, keyFromBase64(KEY_B64)]]) }),
     providers: {
-      email, twilio, realtime: null,
+      email, twilio,
+      realtime: options.realtime ? { connect: async () => { throw new Error("no model in this test"); } } : null,
       square: square
         ? createSquareFactory({ apiVersion: config.SQUARE_API_VERSION, credentials: { SANDBOX: { applicationId: "sq0idp-test", applicationSecret: "sq0csp-test" } }, baseUrls: { SANDBOX: square.url, PRODUCTION: square.url }, timeoutMs: 3000, orderTimeoutMs: 1500 })
         : null,

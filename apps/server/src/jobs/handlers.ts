@@ -2,6 +2,7 @@
 // pg-boss; tests run them through the in-process queue.
 import type { Deps } from "../deps.ts";
 import { reconcileOrder } from "../pos/reconcile.ts";
+import { processSquareEvent } from "../webhooks/square-process.ts";
 import { runCatalogSync } from "./catalog-sync.ts";
 import type { JobHandlers } from "./queue.ts";
 
@@ -14,7 +15,7 @@ export function buildHandlers(deps: Deps): JobHandlers {
     "catalog.staleness": notYet,
     "square.refresh_tokens": notYet,
     "order.reconcile": async (d) => void (await reconcileOrder(deps, d.orderId)),
-    "webhook.process": notYet,
+    "webhook.process": (d) => processSquareEvent(deps, d.eventId),
     "call.finalize": notYet,
     "alerts.fanout": notYet,
     "retention.purge": notYet,

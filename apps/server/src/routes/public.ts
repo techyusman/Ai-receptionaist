@@ -3,9 +3,15 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { Deps } from "../deps.ts";
+import { registerSquareWebhook } from "../webhooks/square.ts";
+import { registerTwilioWebhooks } from "../webhooks/twilio.ts";
+import { registerTwilioCallWebhooks } from "../webhooks/twilio-calls.ts";
 import { completeSquareOAuth } from "./square.ts";
 
 export function registerPublicRoutes(app: FastifyInstance, deps: Deps) {
+  registerSquareWebhook(app, deps);
+  registerTwilioWebhooks(app, deps);
+  registerTwilioCallWebhooks(app, deps);
   app.get("/oauth/square/callback", { config: { rateLimit: { max: 30, timeWindow: "1 minute" } } }, async (req, reply) => {
     const q = z.object({ code: z.string().max(500).optional(), state: z.string().max(200).optional(), error: z.string().max(100).optional() }).safeParse(req.query);
     const dest = await completeSquareOAuth(deps, q.success ? q.data : {});
