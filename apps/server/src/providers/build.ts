@@ -1,6 +1,7 @@
 // Builds the real provider clients from configuration. Anything without credentials is left out, and
 // the routes that need it say so plainly instead of failing in the middle of a request.
 import type { Config } from "../config.ts";
+import { createOpenAiRealtime } from "./realtime-openai.ts";
 import { createResend } from "./resend.ts";
 import type { Providers } from "./index.ts";
 import { createSquareFactory, type SquareCredentials } from "./square-http.ts";
@@ -24,7 +25,7 @@ export function buildProviders(config: Config, overrides: Partial<Providers> = {
           })
         : null,
     square: Object.keys(credentials).length ? createSquareFactory({ apiVersion: config.SQUARE_API_VERSION, credentials }) : null,
-    realtime: null,
+    realtime: config.OPENAI_API_KEY ? createOpenAiRealtime({ apiKey: config.OPENAI_API_KEY, model: config.OPENAI_REALTIME_MODEL, url: config.OPENAI_REALTIME_URL }) : null,
     ...overrides,
   };
 }
