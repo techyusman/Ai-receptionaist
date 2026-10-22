@@ -1,0 +1,13 @@
+{
+  "name": "@receptionist/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Database migrations and their tests. Migration 0001 is replica/schema.sql; replica-backend adds Drizzle models here.",
+  "scripts": {
+    "test": "node test/schema.test.mjs ../../replica/schema.sql"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.10"
+  }
+}

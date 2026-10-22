@@ -8,6 +8,7 @@
   "scripts": {
     "tokens": "node replica/design/build-tokens.mjs",
     "contrast": "python replica/design/contrast.py replica/design/tokens.json",
-    "dev:dashboard": "npm run dev -w apps/dashboard"
+    "dev:dashboard": "npm run dev -w apps/dashboard",
+    "test": "npm test -w packages/domain && npm test -w packages/db"
   }
 }
