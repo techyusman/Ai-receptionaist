@@ -21,3 +21,8 @@ alter table orders
   add column totals_source text check (totals_source in ('SQUARE','ESTIMATE')),
   add constraint estimate_only_for_tests check (totals_source is distinct from 'ESTIMATE' or is_test),
   add constraint totals_have_source check (total_minor is null or totals_source is not null);
+
+-- Events written in one transaction (a submission and its result) must keep their order, so stamp
+-- them with the wall clock rather than the transaction's start time.
+alter table order_events alter column occurred_at set default clock_timestamp();
+alter table order_events alter column created_at set default clock_timestamp();

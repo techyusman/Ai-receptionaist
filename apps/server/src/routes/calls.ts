@@ -8,7 +8,8 @@ import { tenant } from "./util.ts";
 
 const RANGE_DAYS = { today: 0, "7d": 6, "30d": 29, all: null } as const;
 export const mask = (phone: string | null): string | null => (phone ? `•••${phone.slice(-4)}` : null);
-const escapeLike = (s: string) => s.replace(/[\%_]/g, (c) => `\${c}`);
+/** LIKE treats % and _ as wildcards; the "!" escape character (declared in the SQL) makes them literal. */
+const escapeLike = (s: string) => s.replace(/[!%_]/g, "!$&");
 
 type CallRow = {
   id: string; started_at: string; duration_seconds: number | null; from_e164: string | null; caller_name: string | null;
@@ -75,8 +76,8 @@ export function registerCallRoutes(api: FastifyInstance, deps: Deps) {
       // Staff who can't see full numbers can't search by them either.
       where.push(
         can(a.role, "calls.fullPhone")
-          ? `(lower(coalesce(c.summary,'')) like ${n} or lower(coalesce(c.caller_name,'')) like ${n} or coalesce(c.from_e164,'') like ${n})`
-          : `(lower(coalesce(c.summary,'')) like ${n} or lower(coalesce(c.caller_name,'')) like ${n})`,
+          ? `(lower(coalesce(c.summary,'')) like ${n} escape '!' or lower(coalesce(c.caller_name,'')) like ${n} escape '!' or coalesce(c.from_e164,'') like ${n} escape '!')`
+          : `(lower(coalesce(c.summary,'')) like ${n} escape '!' or lower(coalesce(c.caller_name,'')) like ${n} escape '!')`,
       );
     }
     return tenant(deps, a, async (tx) => {

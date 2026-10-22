@@ -18,7 +18,7 @@ const toFaq = (r: FaqRow): Faq => ({
 });
 
 /** Same question, ignoring case and trailing punctuation. One question, one answer, so the AI never has to pick. */
-const SAME_QUESTION = "lower(regexp_replace(question, '[?.!\s]+$', ''))";
+const SAME_QUESTION = "lower(regexp_replace(question, '[?.![:space:]]+$', ''))";
 const normalise = (q: string) => q.trim().toLowerCase().replace(/[?.!\s]+$/, "");
 
 // Starter questions arrive as drafts: the [brackets] must be replaced with the restaurant's own words.
