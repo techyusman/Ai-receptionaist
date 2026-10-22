@@ -1,0 +1,19 @@
+@import "tailwindcss";
+/* Single source of truth: replica/design/tokens.json → build-tokens.mjs → these two files. */
+@import "../../../../replica/design/tokens.css";
+@import "../../../../replica/design/tailwind-theme.css";
+
+@layer base {
+  html {
+    background: var(--ds-bg);
+  }
+
+  body {
+    background: var(--ds-bg);
+    color: var(--ds-text);
+    font-family: var(--ds-font-sans);
+    font-size: var(--ds-type-base-size);
+    line-height: var(--ds-type-base-line);
+    -webkit-font-smoothing: antialiased;
+  }
+}

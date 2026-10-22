@@ -1,0 +1,122 @@
+feature,area,priority,original,clone,notes
+Passwordless email login with one-time code,auth,must,yes,no,S01; spec 15.1 managed identity
+Sign in with Google,auth,should,yes,no,S01
+Guided onboarding wizard that saves progress,onboarding,must,yes,no,S04-S09; Exit Onboarding keeps progress
+Auto-fill business details from a name or address search,onboarding,could,yes,no,S04 public data lookup
+Pending tasks checklist on home and bell,onboarding,should,yes,no,S02 S03
+Self-serve go-live without a specialist,onboarding,should,no,no,Maple specialist activates the account; spec FR-TENANT-008 checklist
+Pick an AI phone number by area code,telephony,must,yes,no,S09 Assign Phone Number; spec FR-VOICE-001
+Call forwarding setup instructions,telephony,must,yes,no,S09; spec 20 forwarding
+Number porting,telephony,could,no,no,Maple does not port (7-10 business days elsewhere)
+Ring staff first then AI picks up,telephony,should,yes,no,S18; about 20 s; Active Schedule Always or During Schedule
+Many calls at once with no busy signal,telephony,must,yes,no,spec 16.2 load test
+Fallback route when the voice AI is down,telephony,must,no,no,not documented by Maple; spec 12.4
+Organization > merchant > location hierarchy,tenancy,must,yes,no,partners overview; spec FR-TENANT-001
+Tenant isolation for menu calls orders and tokens,tenancy,must,yes,no,access flows down the hierarchy; spec FR-TENANT-003
+Roles owner admin manager staff per merchant or location,tenancy,should,yes,no,spec FR-ADMIN-009
+Location switcher,tenancy,should,yes,no,S10; spec FR-TENANT-006
+Audit log of admin changes,tenancy,must,no,no,not documented by Maple; spec FR-ADMIN-010
+Editable welcome message,voice,must,yes,no,S17; spec FR-VOICE-002
+Greeting says it is an AI receptionist,voice,must,no,no,not documented by Maple; spec 15.4
+Choice of voices with preview,voice,should,yes,no,S21 four voices
+Ambient background audio,voice,could,yes,no,S21 Advanced
+Extra languages beyond English,voice,should,yes,no,S17 Spanish and Mandarin; greeting English only; spec FR-VOICE-009
+Answers hours location menu and prices from structured data,voice,must,yes,no,spec FR-VOICE-004 FR-KNOW-002
+Never invents facts and offers a transfer when unsure,voice,must,yes,no,"Maple: ""never hang up""; spec FR-VOICE-005"
+Filler phrase while looking things up,voice,should,yes,no,"""let me check on that"""
+Caller can interrupt the AI,voice,must,no,no,not documented by Maple; spec FR-VOICE-003
+Silence handling and max call length,voice,should,no,no,spec FR-VOICE-010
+After-hours mode answers questions but takes no orders,voice,must,yes,no,spec FR-VOICE-010
+Kitchen-closed and busy-period messages,voice,should,yes,no,busy message set through Maple support
+Pronunciation list for hard words,voice,should,yes,no,S30 + Add Word
+Standing behaviour rules (coaching) editable by the restaurant,voice,could,no,no,Maple: support-managed only
+Prompt-injection guard on caller speech,voice,must,no,no,spec 15.5
+Keypad menu at call start,voice,could,yes,no,press for staff or SMS link
+FAQ entries with question and answer,knowledge,must,yes,no,S25
+Edit an FAQ in place,knowledge,must,no,no,Maple: delete and re-add only
+FAQ templates,knowledge,should,yes,no,Restaurant Sample FAQs (34 questions); write your own text
+Generate FAQs from website URLs,knowledge,could,yes,no,S26; label Automatic vs Manual
+FAQ valid-from and valid-until dates,knowledge,should,no,no,stale Maple entries override live settings; spec FR-KNOW-004
+Weekly store hours with split shifts,knowledge,must,yes,no,S28 + Add Hour Gap
+Holiday and special hours as structured data,knowledge,must,no,no,Maple: put them in FAQs; spec FR-KNOW-001
+Connect Square by OAuth and pick a location,menu,must,partial,no,Maple uses the StreamOrders relay; spec FR-MENU-001
+Full sync of categories items variations modifiers and taxes,menu,must,yes,no,spec FR-MENU-002
+Required and optional modifier groups with min and max,menu,must,yes,no,min 1 = required; spec FR-MENU-005
+Square variations offered as choices on one item,menu,should,no,no,Maple splits each variation into its own item
+Sold-out items not offered,menu,must,yes,no,Maple lag 5-10 min on Square
+Square catalog webhook triggers a resync,menu,must,no,no,spec FR-MENU-007
+Periodic reconciliation sync,menu,must,yes,no,spec FR-MENU-008
+Manual resync with last-synced time,menu,must,yes,no,"S23 ""updated X ago"""
+Sync status and last error shown,menu,must,partial,no,Maple shows a spinner only; spec FR-MENU-009
+Stale-menu guard blocks ordering,menu,must,no,no,spec FR-MENU-010
+Menu browser with categories items and modifier tabs,menu,must,yes,no,S23
+Hide an item from the AI only,menu,should,yes,no,spec FR-MENU-011 overlay
+Menu availability windows (dayparts),menu,should,yes,no,S24 Edit > Availability
+Item descriptions that help recognition,menu,should,yes,no,
+Spoken aliases editable by the restaurant,menu,should,partial,no,Maple: via support or the POS description; spec FR-MENU-012
+Manual menu builder for restaurants without a POS,menu,could,yes,no,manual setup; CSV import
+Take pickup orders by phone,orders,must,yes,no,
+Ask for every required choice,orders,must,yes,no,
+Read back the full order with prices,orders,must,yes,no,Maple known bug: last item can drop
+Explicit yes before submit and re-confirm after any change,orders,must,partial,no,spec FR-ORDER-009 FR-ORDER-010
+Capture customer name and callback number,orders,must,yes,no,
+Confirm callback number separately from caller ID,orders,must,no,no,spec FR-CUSTOMER-002
+Totals from POS pricing and tax,orders,must,yes,no,Maple quotes menu price; POS discounts can lower the receipt
+Pay at pickup with no payment on the call,orders,must,partial,no,Maple: NOT on Square (pay-by-link required); yes on Toast Clover etc.
+Pickup notes and special instructions,orders,should,yes,no,S19 Pickup Notes
+Scheduled pickup orders,orders,could,yes,no,S19 Scheduled Orders
+Cancel an order before submission,orders,should,yes,no,
+Change an order after submission through staff,orders,should,no,no,Maple: cancel and re-place; spec FR-ORDER-018
+Revalidate the order right before submission,orders,must,yes,no,Maple order.validation_requested with expiring result
+Idempotent submission with reconciliation,orders,must,partial,no,Maple decisions replay-safe; spec SUBMISSION_UNKNOWN
+Order sent into Square POS,orders,must,yes,no,Maple: prepaid only; spec P0 blocker
+Order status lifecycle,orders,must,yes,no,Maple 9 states; spec 13 local states
+Tablet or dashboard fallback when the POS cannot take the order,orders,should,yes,no,Maple ships a tablet or printer; spec §1 fallback
+Upsell prompts,orders,could,yes,no,Maple Pro
+Promotions applied by the POS,orders,could,partial,no,AI quotes list price
+Other POS systems (Toast Clover etc),orders,could,yes,no,spec pos-adapter interface; later
+Track Orders list,dashboard,must,yes,no,S11
+Order detail,dashboard,must,yes,no,S12
+Order timeline with submission attempts,dashboard,must,no,no,spec FR-ADMIN-005
+Manual reconcile action for stuck orders,dashboard,should,no,no,spec 14.1
+Warning when Square is disconnected or unproven,dashboard,must,no,no,spec FR-ADMIN-007
+Transfer to staff on request,handoff,must,yes,no,
+Transfer when the AI cannot help or for complaints and allergens,handoff,must,yes,no,spec FR-HANDOFF-002
+Transfer timeout returns the caller to the AI,handoff,must,yes,no,25 s
+Max transfer attempts,handoff,should,yes,no,S20
+Missed-transfer text to a backup number,handoff,should,yes,no,S40
+Different transfer numbers by caller intent,handoff,could,yes,no,catering or large party
+Transfers follow business hours,handoff,must,yes,no,after-hours toggle
+Take a callback request when transfer fails,handoff,must,no,no,spec FR-HANDOFF-004
+Staff sees the order draft on transfer,handoff,should,no,no,spec FR-HANDOFF-006
+Call list with caller summary and order flag,history,must,yes,no,S14
+Call detail with summary and outcome,history,must,yes,no,S15
+Structured call outcome codes,history,must,partial,no,"Maple ""Call resolution""; spec FR-VOICE-011"
+Transcript view,history,should,yes,no,spec: opt-in only
+Call recording playback and download,history,could,yes,no,Maple records every call; spec: off by default
+Recording and transcript off by default with retention days,history,must,no,no,spec 15.4
+Search and filter calls,history,must,partial,no,spec FR-HISTORY-002
+Mask caller phone numbers in lists,history,must,no,no,spec 13.14
+CSV export of calls and orders,history,should,no,no,spec FR-HISTORY-006
+Call analytics tiles and chart,analytics,should,yes,no,S27
+Order analytics (volume avg order value top items conversion),analytics,could,yes,no,orders overview
+Usage and cost per tenant,analytics,should,no,no,spec FR-ADMIN-008
+Test the agent in the browser,testing,should,yes,no,S22 Try Your Agent
+Test by calling the real number,testing,must,yes,no,
+Test orders that never reach the kitchen,testing,should,no,no,Maple has no test mode
+Order confirmation text to the caller,notifications,could,yes,no,needs 10DLC registration (1-4 weeks)
+Staff alert for failed or uncertain orders,notifications,must,no,no,spec 5.5
+In-app help,support,could,yes,no,S31
+Verify and dedupe Square and Twilio webhooks,platform,must,yes,no,Maple signs outbound HMAC-SHA256; clone verifies inbound
+Public partner API,platform,could,yes,no,Maple Developer API
+Subscription billing per location,billing,could,yes,no,Maple Voice $150 / Pro $350 a month
+Pay by texted link,payments,could,yes,skip,spec non-goal §3
+Stripe business verification (KYC),payments,could,yes,skip,only needed for payments
+Tips and service fee,payments,could,yes,skip,payments out of scope
+Delivery orders and zones,delivery,could,yes,skip,spec non-goal; Maple Fleet is a partner courier network
+Reservations (OpenTable Resy SevenRooms),bookings,could,yes,skip,spec non-goal; partner integrations
+Waitlist,bookings,could,yes,skip,spec non-goal
+Drive-thru unit and kiosk,hardware,could,yes,skip,hardware
+StreamOrders relay,integrations,could,yes,skip,partner deal; clone talks to Square directly
+Maple call dataset and tuned models,data,could,yes,skip,data the app owns
+Printer hardware supply,hardware,could,yes,skip,keep the fallback idea; not the hardware

@@ -1,0 +1,61 @@
+WCAG 2.2 contrast report for replica/design/tokens.json (2026-10-20)
+Command: python replica/design/contrast.py replica/design/tokens.json
+
+  AAA   16.93:1  light-text               on light-bg             
+  AAA   18.15:1  light-text               on light-surface        
+  AAA   16.01:1  light-text               on light-surface-muted  
+  AAA   15.62:1  light-text               on light-accent-subtle  
+  AA     6.12:1  light-text-muted         on light-bg             
+  AA     6.56:1  light-text-muted         on light-surface        
+  AA     5.79:1  light-text-muted         on light-surface-muted  
+  AA     5.52:1  light-on-accent          on light-accent         
+  AAA    7.43:1  light-on-accent          on light-accent-hover   
+  AA     5.52:1  light-accent             on light-surface        
+  AA     5.15:1  light-accent             on light-bg             
+  AA     4.75:1  light-accent             on light-accent-subtle  
+  AA     5.79:1  light-danger             on light-surface        
+  AA     5.02:1  light-danger             on light-danger-subtle  
+  AA     5.79:1  light-on-danger          on light-danger         
+  AA     5.78:1  light-success            on light-surface        
+  AA     5.12:1  light-success            on light-success-subtle 
+  AA     5.91:1  light-warning            on light-surface        
+  AA     5.38:1  light-warning            on light-warning-subtle 
+  PASS   3.68:1  light-border-input       on light-surface        ui
+  PASS   3.43:1  light-border-input       on light-bg             ui
+  PASS   5.52:1  light-focus              on light-surface        ui
+  PASS   5.15:1  light-focus              on light-bg             ui
+  AAA   16.09:1  dark-text                on dark-bg              
+  AAA   14.88:1  dark-text                on dark-surface         
+  AAA   13.64:1  dark-text                on dark-surface-muted   
+  AAA   12.94:1  dark-text                on dark-accent-subtle   
+  AAA    7.65:1  dark-text-muted          on dark-bg              
+  AAA    7.07:1  dark-text-muted          on dark-surface         
+  AA     6.48:1  dark-text-muted          on dark-surface-muted   
+  AA     6.95:1  dark-on-accent           on dark-accent          
+  AAA    8.63:1  dark-on-accent           on dark-accent-hover    
+  AA     6.42:1  dark-accent              on dark-surface         
+  AA     6.94:1  dark-accent              on dark-bg              
+  AA     5.58:1  dark-accent              on dark-accent-subtle   
+  AA     6.62:1  dark-danger              on dark-surface         
+  AA     5.87:1  dark-danger              on dark-danger-subtle   
+  AAA    7.36:1  dark-on-danger           on dark-danger          
+  AAA    8.06:1  dark-success             on dark-surface         
+  AAA    7.16:1  dark-success             on dark-success-subtle  
+  AAA    9.63:1  dark-warning             on dark-surface         
+  AAA    8.14:1  dark-warning             on dark-warning-subtle  
+  PASS   3.94:1  dark-border-input        on dark-surface         ui
+  PASS   4.26:1  dark-border-input        on dark-bg              ui
+  PASS   7.97:1  dark-focus               on dark-surface         ui
+  PASS   8.62:1  dark-focus               on dark-bg              ui
+  AAA   16.51:1  light-text               on light-warning-subtle 
+  AAA   15.75:1  light-text               on light-danger-subtle  
+  AAA   16.08:1  light-text               on light-success-subtle 
+  AA     5.78:1  light-on-accent          on light-success        
+  AA     5.09:1  light-warning            on light-accent-subtle  
+  AAA   12.57:1  dark-text                on dark-warning-subtle  
+  AAA   13.18:1  dark-text                on dark-danger-subtle   
+  AAA   13.21:1  dark-text                on dark-success-subtle  
+  AAA    8.73:1  dark-on-accent           on dark-success         
+  AAA    8.38:1  dark-warning             on dark-accent-subtle   
+
+  56 pairs, 0 failing AA

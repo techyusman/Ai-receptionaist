@@ -1,0 +1,70 @@
+/* Generated from tokens.json by build-tokens.mjs. Do not edit by hand. */
+
+/* Only token-backed values exist: the default palette and type scale are switched off,
+   so components can use bg-surface / text-muted but never bg-blue-500 or text-[13px]. */
+@theme inline {
+  --color-*: initial;
+  --color-white: #ffffff;
+  --color-black: #000000;
+  --color-canvas: var(--ds-bg);
+  --color-surface: var(--ds-surface);
+  --color-surface-muted: var(--ds-surface-muted);
+  --color-border: var(--ds-border);
+  --color-input: var(--ds-border-input);
+  --color-fg: var(--ds-text);
+  --color-muted: var(--ds-text-muted);
+  --color-accent: var(--ds-accent);
+  --color-accent-hover: var(--ds-accent-hover);
+  --color-accent-subtle: var(--ds-accent-subtle);
+  --color-on-accent: var(--ds-on-accent);
+  --color-focus: var(--ds-focus);
+  --color-danger: var(--ds-danger);
+  --color-danger-subtle: var(--ds-danger-subtle);
+  --color-on-danger: var(--ds-on-danger);
+  --color-success: var(--ds-success);
+  --color-success-subtle: var(--ds-success-subtle);
+  --color-warning: var(--ds-warning);
+  --color-warning-subtle: var(--ds-warning-subtle);
+
+  --font-sans: var(--ds-font-sans);
+  --font-mono: var(--ds-font-mono);
+
+  --text-*: initial;
+  --text-xs: var(--ds-type-xs-size);
+  --text-xs--line-height: var(--ds-type-xs-line);
+  --text-xs--font-weight: var(--ds-type-xs-weight);
+  --text-sm: var(--ds-type-sm-size);
+  --text-sm--line-height: var(--ds-type-sm-line);
+  --text-sm--font-weight: var(--ds-type-sm-weight);
+  --text-base: var(--ds-type-base-size);
+  --text-base--line-height: var(--ds-type-base-line);
+  --text-base--font-weight: var(--ds-type-base-weight);
+  --text-lg: var(--ds-type-lg-size);
+  --text-lg--line-height: var(--ds-type-lg-line);
+  --text-lg--font-weight: var(--ds-type-lg-weight);
+  --text-xl: var(--ds-type-xl-size);
+  --text-xl--line-height: var(--ds-type-xl-line);
+  --text-xl--font-weight: var(--ds-type-xl-weight);
+  --text-display: var(--ds-type-display-size);
+  --text-display--line-height: var(--ds-type-display-line);
+  --text-display--font-weight: var(--ds-type-display-weight);
+
+  --spacing: 4px;
+
+  --radius-*: initial;
+  --radius-sm: var(--ds-radius-sm);
+  --radius-md: var(--ds-radius-md);
+  --radius-lg: var(--ds-radius-lg);
+  --radius-pill: var(--ds-radius-pill);
+
+  --shadow-*: initial;
+  --shadow-card: var(--ds-shadow-card);
+  --shadow-pop: var(--ds-shadow-pop);
+
+  --ease-ds: var(--ds-ease);
+
+  --breakpoint-sm: 40rem;
+  --breakpoint-md: 48rem;
+  --breakpoint-lg: 64rem;
+  --breakpoint-xl: 80rem;
+}
