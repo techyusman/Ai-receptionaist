@@ -40,7 +40,11 @@ export async function startTestDatabase(options: { migrate?: boolean } = {}): Pr
     async stop() {
       await pool.end().catch(() => {});
       await server.stop().catch(() => {});
-      rmSync(dir, { recursive: true, force: true });
+      try {
+        rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+      } catch {
+        // Windows can hold the folder a moment after Postgres exits; the OS temp cleaner takes it later.
+      }
     },
   };
 }
