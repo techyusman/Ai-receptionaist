@@ -17,3 +17,11 @@ data layer is the in-memory fake (`apps/dashboard/src/server/fake`) until `/repl
 | S12 | 2026-10-22 | done | Reconcile button (needs the Square adapter) | URL-driven drawer so orders are linkable and Back closes it. |
 | S14 | 2026-10-22 | done | – | – |
 | S15 | 2026-10-22 | done | Transcripts and recordings are off by default, so there's nothing to show yet | Seed calls had to last longer than their own logged steps. |
+| S09 | 2026-10-22 | done | Real number search and purchase (Twilio) with the backend | Fake search kept offering numbers already owned; fixed to exclude them. |
+| S29 | 2026-10-22 | partial | Real Square OAuth redirect and token storage with the backend | Location picker lost its default after reconnecting (state initialised before the list arrived). |
+| S19 | 2026-10-22 | done | – | The P0 sign-off lives here: owner-only, Square option locked until the test passes. |
+| S17 | 2026-10-22 | done | Voice samples need the phone line | Greeting must say it's an AI (spec §15.4): live warning until it does. |
+| S18 | 2026-10-22 | done | Enforcement of limits lives in the voice gateway | Empty number fields reached the server as NaN; the form now blocks saving instead. |
+| S20 | 2026-10-22 | done | The transfer itself (Twilio Dial + whisper) with the backend | Loop guard: refuses the AI's own number. |
+| S21 | 2026-10-22 | partial | Voice samples need the speech provider | – |
+| S30 | 2026-10-22 | done | – | – |

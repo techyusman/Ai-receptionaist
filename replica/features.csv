@@ -5,30 +5,30 @@ Guided onboarding wizard that saves progress,onboarding,must,yes,no,S04-S09; Exi
 Auto-fill business details from a name or address search,onboarding,could,yes,no,S04 public data lookup
 Pending tasks checklist on home and bell,onboarding,should,yes,no,S02 S03
 Self-serve go-live without a specialist,onboarding,should,no,no,Maple specialist activates the account; spec FR-TENANT-008 checklist
-Pick an AI phone number by area code,telephony,must,yes,no,S09 Assign Phone Number; spec FR-VOICE-001
-Call forwarding setup instructions,telephony,must,yes,no,S09; spec 20 forwarding
+Pick an AI phone number by area code,telephony,must,yes,yes,"S09 Assign Phone Number; spec FR-VOICE-001; built: S09 area-code search, pick, add (owner only); fake number provider until Twilio"
+Call forwarding setup instructions,telephony,must,yes,yes,S09; spec 20 forwarding; built: S09 plain steps plus the loop warning
 Number porting,telephony,could,no,no,Maple does not port (7-10 business days elsewhere)
-Ring staff first then AI picks up,telephony,should,yes,no,S18; about 20 s; Active Schedule Always or During Schedule
+Ring staff first then AI picks up,telephony,should,yes,yes,S18; about 20 s; Active Schedule Always or During Schedule; built: S18 with seconds before the AI answers
 Many calls at once with no busy signal,telephony,must,yes,no,spec 16.2 load test
-Fallback route when the voice AI is down,telephony,must,no,no,not documented by Maple; spec 12.4
+Fallback route when the voice AI is down,telephony,must,no,partial,not documented by Maple; spec 12.4; built: each number shows its outage fallback; Twilio fallback URL wiring with the backend
 Organization > merchant > location hierarchy,tenancy,must,yes,no,partners overview; spec FR-TENANT-001
 Tenant isolation for menu calls orders and tokens,tenancy,must,yes,no,access flows down the hierarchy; spec FR-TENANT-003
 Roles owner admin manager staff per merchant or location,tenancy,should,yes,partial,spec FR-ADMIN-009; built: roles enforced on every read and action; team screen next
 Location switcher,tenancy,should,yes,partial,S10; spec FR-TENANT-006; built: switcher shows with 2+ locations; seed has one
 Audit log of admin changes,tenancy,must,no,no,not documented by Maple; spec FR-ADMIN-010
-Editable welcome message,voice,must,yes,no,S17; spec FR-VOICE-002
-Greeting says it is an AI receptionist,voice,must,no,no,not documented by Maple; spec 15.4
-Choice of voices with preview,voice,should,yes,no,S21 four voices
+Editable welcome message,voice,must,yes,yes,S17; spec FR-VOICE-002; built: S17
+Greeting says it is an AI receptionist,voice,must,no,yes,not documented by Maple; spec 15.4; built: S17 warns until the greeting says it's an AI
+Choice of voices with preview,voice,should,yes,partial,S21 four voices; built: S21 four voices of our own; samples play once the phone line exists
 Ambient background audio,voice,could,yes,no,S21 Advanced
-Extra languages beyond English,voice,should,yes,no,S17 Spanish and Mandarin; greeting English only; spec FR-VOICE-009
+Extra languages beyond English,voice,should,yes,yes,S17 Spanish and Mandarin; greeting English only; spec FR-VOICE-009; built: S17 English plus at most one of Spanish or Mandarin
 Answers hours location menu and prices from structured data,voice,must,yes,no,spec FR-VOICE-004 FR-KNOW-002
 Never invents facts and offers a transfer when unsure,voice,must,yes,no,"Maple: ""never hang up""; spec FR-VOICE-005"
 Filler phrase while looking things up,voice,should,yes,no,"""let me check on that"""
 Caller can interrupt the AI,voice,must,no,no,not documented by Maple; spec FR-VOICE-003
-Silence handling and max call length,voice,should,no,no,spec FR-VOICE-010
-After-hours mode answers questions but takes no orders,voice,must,yes,no,spec FR-VOICE-010
+Silence handling and max call length,voice,should,no,yes,spec FR-VOICE-010; built: S18 settings (enforced by the voice gateway)
+After-hours mode answers questions but takes no orders,voice,must,yes,partial,spec FR-VOICE-010; built: S17 setting and S22 outside-hours note; enforced by the voice agent with the backend
 Kitchen-closed and busy-period messages,voice,should,yes,no,busy message set through Maple support
-Pronunciation list for hard words,voice,should,yes,no,S30 + Add Word
+Pronunciation list for hard words,voice,should,yes,yes,S30 + Add Word; built: S30 add and remove
 Standing behaviour rules (coaching) editable by the restaurant,voice,could,no,no,Maple: support-managed only
 Prompt-injection guard on caller speech,voice,must,no,no,spec 15.5
 Keypad menu at call start,voice,could,yes,no,press for staff or SMS link
@@ -39,15 +39,15 @@ Generate FAQs from website URLs,knowledge,could,yes,no,S26; label Automatic vs M
 FAQ valid-from and valid-until dates,knowledge,should,no,no,stale Maple entries override live settings; spec FR-KNOW-004
 Weekly store hours with split shifts,knowledge,must,yes,no,S28 + Add Hour Gap
 Holiday and special hours as structured data,knowledge,must,no,no,Maple: put them in FAQs; spec FR-KNOW-001
-Connect Square by OAuth and pick a location,menu,must,partial,no,Maple uses the StreamOrders relay; spec FR-MENU-001
+Connect Square by OAuth and pick a location,menu,must,partial,partial,"Maple uses the StreamOrders relay; spec FR-MENU-001; built: S29 connect, environment, location picker; fake OAuth until replica-backend"
 Full sync of categories items variations modifiers and taxes,menu,must,yes,no,spec FR-MENU-002
 Required and optional modifier groups with min and max,menu,must,yes,no,min 1 = required; spec FR-MENU-005
 Square variations offered as choices on one item,menu,should,no,no,Maple splits each variation into its own item
 Sold-out items not offered,menu,must,yes,no,Maple lag 5-10 min on Square
 Square catalog webhook triggers a resync,menu,must,no,no,spec FR-MENU-007
 Periodic reconciliation sync,menu,must,yes,no,spec FR-MENU-008
-Manual resync with last-synced time,menu,must,yes,no,"S23 ""updated X ago"""
-Sync status and last error shown,menu,must,partial,no,Maple shows a spinner only; spec FR-MENU-009
+Manual resync with last-synced time,menu,must,yes,yes,"S23 ""updated X ago""; built: S29 and S23 sync indicator with resync"
+Sync status and last error shown,menu,must,partial,yes,"Maple shows a spinner only; spec FR-MENU-009; built: S29 status pill, relative time, error code in the tooltip"
 Stale-menu guard blocks ordering,menu,must,no,no,spec FR-MENU-010
 Menu browser with categories items and modifier tabs,menu,must,yes,no,S23
 Hide an item from the AI only,menu,should,yes,no,spec FR-MENU-011 overlay
@@ -69,7 +69,7 @@ Cancel an order before submission,orders,should,yes,no,
 Change an order after submission through staff,orders,should,no,no,Maple: cancel and re-place; spec FR-ORDER-018
 Revalidate the order right before submission,orders,must,yes,partial,Maple order.validation_requested with expiring result; built: read-back rechecks availability and menu freshness; Square-side revalidation with the real adapter
 Idempotent submission with reconciliation,orders,must,partial,no,Maple decisions replay-safe; spec SUBMISSION_UNKNOWN
-Order sent into Square POS,orders,must,yes,no,Maple: prepaid only; spec P0 blocker
+Order sent into Square POS,orders,must,yes,partial,Maple: prepaid only; spec P0 blocker; built: Square stays locked until the P0 test is signed off; orders go to Live orders meanwhile
 Order status lifecycle,orders,must,yes,yes,"Maple 9 states; spec 13 local states; built: 13 states, transitions enforced in domain and database, every change logged"
 Tablet or dashboard fallback when the POS cannot take the order,orders,should,yes,yes,Maple ships a tablet or printer; spec §1 fallback; built: Live orders (S41) + full-screen kitchen view; staff accept each ticket
 Upsell prompts,orders,could,yes,no,Maple Pro
@@ -80,13 +80,13 @@ Order detail,dashboard,must,yes,yes,"S12; built: S12 drawer: items, totals, cust
 Order timeline with submission attempts,dashboard,must,no,yes,spec FR-ADMIN-005; built: S12 shows every transition with actor and each attempt's idempotency key
 Manual reconcile action for stuck orders,dashboard,should,no,no,spec 14.1
 Warning when Square is disconnected or unproven,dashboard,must,no,yes,"spec FR-ADMIN-007; built: global banners for unverified Square, disconnection and a stale menu"
-Transfer to staff on request,handoff,must,yes,no,
+Transfer to staff on request,handoff,must,yes,partial,built: S20 numbers and rules; the transfer itself happens in the voice gateway
 Transfer when the AI cannot help or for complaints and allergens,handoff,must,yes,no,spec FR-HANDOFF-002
-Transfer timeout returns the caller to the AI,handoff,must,yes,no,25 s
-Max transfer attempts,handoff,should,yes,no,S20
-Missed-transfer text to a backup number,handoff,should,yes,no,S40
-Different transfer numbers by caller intent,handoff,could,yes,no,catering or large party
-Transfers follow business hours,handoff,must,yes,no,after-hours toggle
+Transfer timeout returns the caller to the AI,handoff,must,yes,partial,25 s; built: S20 ring time setting; behaviour in the voice gateway
+Max transfer attempts,handoff,should,yes,yes,S20; built: S20
+Missed-transfer text to a backup number,handoff,should,yes,partial,S40; built: S20 per-number switch; SMS sending with the backend
+Different transfer numbers by caller intent,handoff,could,yes,yes,catering or large party; built: S20 intent per number
+Transfers follow business hours,handoff,must,yes,yes,after-hours toggle; built: S20 opening hours or any time per number
 Take a callback request when transfer fails,handoff,must,no,no,spec FR-HANDOFF-004
 Staff sees the order draft on transfer,handoff,should,no,no,spec FR-HANDOFF-006
 Call list with caller summary and order flag,history,must,yes,yes,S14; built: S14
@@ -94,7 +94,7 @@ Call detail with summary and outcome,history,must,yes,yes,"S15; built: S15 drawe
 Structured call outcome codes,history,must,partial,yes,"Maple ""Call resolution""; spec FR-VOICE-011; built: seven outcomes with labels and icons"
 Transcript view,history,should,yes,no,spec: opt-in only
 Call recording playback and download,history,could,yes,no,Maple records every call; spec: off by default
-Recording and transcript off by default with retention days,history,must,no,no,spec 15.4
+Recording and transcript off by default with retention days,history,must,no,yes,"spec 15.4; built: S18 owner-only switches, consent warning, retention days"
 Search and filter calls,history,must,partial,yes,"spec FR-HISTORY-002; built: outcome, transferred, date range and text search"
 Mask caller phone numbers in lists,history,must,no,yes,spec 13.14; built: staff see only the last four digits
 CSV export of calls and orders,history,should,no,no,spec FR-HISTORY-006
