@@ -3,11 +3,22 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Database migrations and their tests. Migration 0001 is replica/schema.sql; replica-backend adds Drizzle models here.",
+  "description": "Postgres access for the API and worker: migrations, tenant-scoped transactions (row level security), and test helpers that start a real local Postgres.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing.ts"
+  },
   "scripts": {
-    "test": "node test/schema.test.mjs ../../replica/schema.sql"
+    "migrate": "node src/cli.ts migrate",
+    "test": "node --test --test-concurrency=1 \"test/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "pg": "^8.23.1"
   },
   "devDependencies": {
-    "@electric-sql/pglite": "^0.5.10"
+    "@types/node": "^22",
+    "@types/pg": "^8.15.0",
+    "embedded-postgres": "^18.4.0-beta.17"
   }
 }

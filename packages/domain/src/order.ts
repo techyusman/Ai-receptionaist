@@ -1,4 +1,4 @@
-// The order state machine (spec §9). Mirrors the database triggers in replica/schema.sql, so the
+// The order state machine (spec §9). Mirrors the database triggers in packages/db/migrations/0001_init.sql, so the
 // rules hold even if a caller skips this module. Pure: every function returns a new order.
 
 export const ORDER_STATUSES = [

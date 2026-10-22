@@ -1,7 +1,7 @@
 # Architecture: AI Receptionist (working name), a rebuild of Maple's core features
 
 Inputs: `spec.md` (the product spec), `replica/recon.md` (Maple recon), `replica/features.csv`.
-Schema: `replica/schema.sql` (migration 0001; tested, see "Schema").
+Schema: `packages/db/migrations/0001_init.sql` (migration 0001; tested, see "Schema").
 Date: 2026-10-21
 
 ## Stack
@@ -16,7 +16,7 @@ The stack is the one `spec.md` §7.2 already chose. The changes are fewer moving
 | voice model | OpenAI Realtime API, model pinned in `OPENAI_REALTIME_MODEL` | spec §7.2. Speech-to-speech with function calling, and server voice-activity detection for interruptions. |
 | POS | Square OAuth, Locations, Catalog and Orders APIs + webhooks, official `square` SDK, `SQUARE_API_VERSION` pinned at 2026-08-19 or later | spec §11. That version is the first with nested modifiers (`child_modifier_list_ids`). |
 | database | Postgres on Supabase (15+; 17 preferred) | One database for everything, including the job queue. Managed backups and point-in-time restore. |
-| ORM / migrations | Drizzle; migrations are reviewed SQL files (`schema.sql` = 0001) | SQL first, and it makes the per-transaction `set_config` that row level security needs easy. |
+| ORM / migrations | No ORM: reviewed SQL migration files (`0001_init.sql`) and small typed repository functions over `pg` | Changed from Drizzle during replica-backend. The schema is the source of truth (triggers, composite keys and RLS do most of the work), a second model of it would only drift, and plain SQL makes the per-transaction `set_config` that RLS needs trivial. |
 | auth | Supabase Auth: email one-time code + Google, TOTP MFA required for platform admins | Matches Maple's passwordless login (S01) and spec §15.1. Fastify verifies the JWT against Supabase's JWKS. |
 | jobs | pg-boss (a queue stored in the same Postgres) | A job is enqueued in the same transaction as the order write, so no job is lost if the process dies. Swap for BullMQ + Redis only if volume demands it. |
 | live dashboard updates | Server-Sent Events from Fastify, fed by Postgres `LISTEN/NOTIFY` | Powers the live order queue (S41) and alert banners with no extra vendor. |
@@ -52,7 +52,7 @@ Maple's docs (recon sources 28–29) say Square orders must be paid before Maple
 
 ## Schema
 
-**Tables: 38, plus 2 views. Access rules: checks in the data layer first, with Postgres row level security as the backstop.** The full SQL is in `replica/schema.sql`.
+**Tables: 38, plus 2 views. Access rules: checks in the data layer first, with Postgres row level security as the backstop.** The full SQL is in `packages/db/migrations/0001_init.sql`.
 
 - **How tenancy works:**
   - Every request runs inside `withTenant({restaurantId, userId}, fn)`. That opens a transaction and sets `app.restaurant_id` and `app.user_id`, and every repository function also filters by `restaurant_id`.
@@ -72,7 +72,7 @@ Maple's docs (recon sources 28–29) say Square orders must be paid before Maple
   - `calls`, `orders` and `callback_requests` use **restrict**. They're business records, and the retention/offboarding job deletes them deliberately.
   - Menu rows are soft-deleted (`is_deleted`), so order lines can safely `restrict` against them.
   - `audit_logs` has no foreign key on purpose, so it outlives the tenant.
-- **Tested:** `schema.sql` was applied to Postgres 18 (PGlite) with **40 checks, 40 passing**. They cover isolation between two tenants, no context returning no rows, cross-tenant writes blocked, the Square gate, one tenant per called number, one tenant per Square location, one owner per restaurant, the full order lifecycle with edit-after-confirm, frozen submissions, idempotency-key binding, the transition log, append-only audit/event tables, one running sync per location, and views respecting tenancy. The test script is outside the repo, in the scratchpad (path in the hand-off message). `/replica-build` should bring it into the repo's test suite.
+- **Tested:** `schema.sql` was applied to Postgres 18 (PGlite) with **40 checks, 40 passing**. They cover isolation between two tenants, no context returning no rows, cross-tenant writes blocked, the Square gate, one tenant per called number, one tenant per Square location, one owner per restaurant, the full order lifecycle with edit-after-confirm, frozen submissions, idempotency-key binding, the transition log, append-only audit/event tables, one running sync per location, and views respecting tenancy. The test now lives in `packages/db/test` and runs on a real Postgres 18 (see backend.md).
 
 | group | tables |
 | --- | --- |
