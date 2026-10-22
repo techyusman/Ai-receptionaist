@@ -255,7 +255,10 @@ export function seed(now: Date): State {
   const callerName = () => `${firstNames[Math.floor(rand() * firstNames.length)]} ${lastInitials[Math.floor(rand() * lastInitials.length)]}.`;
 
   const makeCall = (start: Date, outcome: CallOutcome, extra: Partial<CallDetail> = {}): CallDetail & { locationId: string } => {
-    const duration = outcome === "CALLER_HUNG_UP" ? 8 + Math.floor(rand() * 30) : 45 + Math.floor(rand() * 180);
+    const duration =
+      outcome === "CALLER_HUNG_UP" ? 8 + Math.floor(rand() * 30)
+      : outcome === "ORDER_SUBMITTED" ? 110 + Math.floor(rand() * 150) // longer than the ordering steps logged below
+      : 45 + Math.floor(rand() * 180);
     const phone = callerPhone();
     const events: CallEvent[] = [{ at: iso(start), type: "call.started", actor: "SYSTEM", detail: "Call answered by the AI" }];
     return {

@@ -3,6 +3,23 @@
 @import "../../../../replica/design/tokens.css";
 @import "../../../../replica/design/tailwind-theme.css";
 
+/* Printing a single ticket from Live orders: only the marked ticket shows. */
+@media print {
+  body:has([data-printing]) * {
+    visibility: hidden;
+  }
+  [data-printing],
+  [data-printing] * {
+    visibility: visible;
+  }
+  [data-printing] {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 80mm;
+    border: 0;
+  }
+}
+
 @layer base {
   html {
     background: var(--ds-bg);

@@ -98,16 +98,26 @@ export type Ticket = {
   lines: { qty: number; name: string; modifiers?: string[]; note?: string }[];
 };
 
+/** Prints only this ticket (see the print rules in globals.css). */
+function printTicket(el: HTMLElement | null) {
+  if (!el) return;
+  el.setAttribute("data-printing", "");
+  window.print();
+  el.removeAttribute("data-printing");
+}
+
 export function TicketCard({
   ticket,
   state = "new",
   test = false,
   onAccept,
+  accepting = false,
 }: {
   ticket: Ticket;
   state?: "new" | "accepted" | "check-needed";
   test?: boolean;
   onAccept?: () => void;
+  accepting?: boolean;
 }) {
   const now = useNow();
   const mins = minutesAgo(ticket.createdAt, now);
@@ -170,11 +180,11 @@ export function TicketCard({
           )}
         </div>
         <div className="flex items-center gap-1">
-          <IconButton label="Print ticket" size="lg">
+          <IconButton label={`Print ticket for ${ticket.customerName}`} size="lg" onClick={(e) => printTicket(e.currentTarget.closest("article"))}>
             <Printer aria-hidden />
           </IconButton>
-          {state !== "accepted" && (
-            <Button size="lg" onClick={onAccept}>
+          {state !== "accepted" && onAccept && (
+            <Button size="lg" onClick={onAccept} loading={accepting} aria-label={`Accept order for ${ticket.customerName}`}>
               Accept
             </Button>
           )}

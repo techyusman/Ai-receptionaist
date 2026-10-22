@@ -1,5 +1,5 @@
 feature,area,priority,original,clone,notes
-Passwordless email login with one-time code,auth,must,yes,no,S01; spec 15.1 managed identity
+Passwordless email login with one-time code,auth,must,yes,partial,S01; spec 15.1 managed identity; built: S01 email then 6-digit code with resend cooldown; fake code until Supabase Auth (replica-backend)
 Sign in with Google,auth,should,yes,no,S01
 Guided onboarding wizard that saves progress,onboarding,must,yes,no,S04-S09; Exit Onboarding keeps progress
 Auto-fill business details from a name or address search,onboarding,could,yes,no,S04 public data lookup
@@ -13,8 +13,8 @@ Many calls at once with no busy signal,telephony,must,yes,no,spec 16.2 load test
 Fallback route when the voice AI is down,telephony,must,no,no,not documented by Maple; spec 12.4
 Organization > merchant > location hierarchy,tenancy,must,yes,no,partners overview; spec FR-TENANT-001
 Tenant isolation for menu calls orders and tokens,tenancy,must,yes,no,access flows down the hierarchy; spec FR-TENANT-003
-Roles owner admin manager staff per merchant or location,tenancy,should,yes,no,spec FR-ADMIN-009
-Location switcher,tenancy,should,yes,no,S10; spec FR-TENANT-006
+Roles owner admin manager staff per merchant or location,tenancy,should,yes,partial,spec FR-ADMIN-009; built: roles enforced on every read and action; team screen next
+Location switcher,tenancy,should,yes,partial,S10; spec FR-TENANT-006; built: switcher shows with 2+ locations; seed has one
 Audit log of admin changes,tenancy,must,no,no,not documented by Maple; spec FR-ADMIN-010
 Editable welcome message,voice,must,yes,no,S17; spec FR-VOICE-002
 Greeting says it is an AI receptionist,voice,must,no,no,not documented by Maple; spec 15.4
@@ -55,31 +55,31 @@ Menu availability windows (dayparts),menu,should,yes,no,S24 Edit > Availability
 Item descriptions that help recognition,menu,should,yes,no,
 Spoken aliases editable by the restaurant,menu,should,partial,no,Maple: via support or the POS description; spec FR-MENU-012
 Manual menu builder for restaurants without a POS,menu,could,yes,no,manual setup; CSV import
-Take pickup orders by phone,orders,must,yes,no,
-Ask for every required choice,orders,must,yes,no,
-Read back the full order with prices,orders,must,yes,no,Maple known bug: last item can drop
-Explicit yes before submit and re-confirm after any change,orders,must,partial,no,spec FR-ORDER-009 FR-ORDER-010
-Capture customer name and callback number,orders,must,yes,no,
+Take pickup orders by phone,orders,must,yes,partial,built: whole order flow runs through the test agent (S22) on the domain rules; the phone line and voice model come with replica-backend
+Ask for every required choice,orders,must,yes,yes,"built: domain validateSelection asks for missing sizes and required modifiers, including nested lists"
+Read back the full order with prices,orders,must,yes,yes,"Maple known bug: last item can drop; built: read-back script with every line, modifier and the total (S22)"
+Explicit yes before submit and re-confirm after any change,orders,must,partial,yes,spec FR-ORDER-009 FR-ORDER-010; built: domain + database: any edit voids confirmation and returns to DRAFT
+Capture customer name and callback number,orders,must,yes,yes,"built: name and number, read back digit by digit"
 Confirm callback number separately from caller ID,orders,must,no,no,spec FR-CUSTOMER-002
-Totals from POS pricing and tax,orders,must,yes,no,Maple quotes menu price; POS discounts can lower the receipt
-Pay at pickup with no payment on the call,orders,must,partial,no,Maple: NOT on Square (pay-by-link required); yes on Toast Clover etc.
+Totals from POS pricing and tax,orders,must,yes,partial,Maple quotes menu price; POS discounts can lower the receipt; built: menu prices + location tax rate stand in for Square CalculateOrder
+Pay at pickup with no payment on the call,orders,must,partial,yes,Maple: NOT on Square (pay-by-link required); yes on Toast Clover etc.; built: no payment step anywhere; 'paid at pickup' on every total
 Pickup notes and special instructions,orders,should,yes,no,S19 Pickup Notes
 Scheduled pickup orders,orders,could,yes,no,S19 Scheduled Orders
 Cancel an order before submission,orders,should,yes,no,
 Change an order after submission through staff,orders,should,no,no,Maple: cancel and re-place; spec FR-ORDER-018
-Revalidate the order right before submission,orders,must,yes,no,Maple order.validation_requested with expiring result
+Revalidate the order right before submission,orders,must,yes,partial,Maple order.validation_requested with expiring result; built: read-back rechecks availability and menu freshness; Square-side revalidation with the real adapter
 Idempotent submission with reconciliation,orders,must,partial,no,Maple decisions replay-safe; spec SUBMISSION_UNKNOWN
 Order sent into Square POS,orders,must,yes,no,Maple: prepaid only; spec P0 blocker
-Order status lifecycle,orders,must,yes,no,Maple 9 states; spec 13 local states
-Tablet or dashboard fallback when the POS cannot take the order,orders,should,yes,no,Maple ships a tablet or printer; spec §1 fallback
+Order status lifecycle,orders,must,yes,yes,"Maple 9 states; spec 13 local states; built: 13 states, transitions enforced in domain and database, every change logged"
+Tablet or dashboard fallback when the POS cannot take the order,orders,should,yes,yes,Maple ships a tablet or printer; spec §1 fallback; built: Live orders (S41) + full-screen kitchen view; staff accept each ticket
 Upsell prompts,orders,could,yes,no,Maple Pro
 Promotions applied by the POS,orders,could,partial,no,AI quotes list price
 Other POS systems (Toast Clover etc),orders,could,yes,no,spec pos-adapter interface; later
-Track Orders list,dashboard,must,yes,no,S11
-Order detail,dashboard,must,yes,no,S12
-Order timeline with submission attempts,dashboard,must,no,no,spec FR-ADMIN-005
+Track Orders list,dashboard,must,yes,yes,"S11; built: S11 with status and date filters, counts, paging, mobile layout"
+Order detail,dashboard,must,yes,yes,"S12; built: S12 drawer: items, totals, customer, timeline, attempts, accept and cancel"
+Order timeline with submission attempts,dashboard,must,no,yes,spec FR-ADMIN-005; built: S12 shows every transition with actor and each attempt's idempotency key
 Manual reconcile action for stuck orders,dashboard,should,no,no,spec 14.1
-Warning when Square is disconnected or unproven,dashboard,must,no,no,spec FR-ADMIN-007
+Warning when Square is disconnected or unproven,dashboard,must,no,yes,"spec FR-ADMIN-007; built: global banners for unverified Square, disconnection and a stale menu"
 Transfer to staff on request,handoff,must,yes,no,
 Transfer when the AI cannot help or for complaints and allergens,handoff,must,yes,no,spec FR-HANDOFF-002
 Transfer timeout returns the caller to the AI,handoff,must,yes,no,25 s
@@ -89,23 +89,23 @@ Different transfer numbers by caller intent,handoff,could,yes,no,catering or lar
 Transfers follow business hours,handoff,must,yes,no,after-hours toggle
 Take a callback request when transfer fails,handoff,must,no,no,spec FR-HANDOFF-004
 Staff sees the order draft on transfer,handoff,should,no,no,spec FR-HANDOFF-006
-Call list with caller summary and order flag,history,must,yes,no,S14
-Call detail with summary and outcome,history,must,yes,no,S15
-Structured call outcome codes,history,must,partial,no,"Maple ""Call resolution""; spec FR-VOICE-011"
+Call list with caller summary and order flag,history,must,yes,yes,S14; built: S14
+Call detail with summary and outcome,history,must,yes,yes,"S15; built: S15 drawer: outcome, steps the AI took, transfers, linked order"
+Structured call outcome codes,history,must,partial,yes,"Maple ""Call resolution""; spec FR-VOICE-011; built: seven outcomes with labels and icons"
 Transcript view,history,should,yes,no,spec: opt-in only
 Call recording playback and download,history,could,yes,no,Maple records every call; spec: off by default
 Recording and transcript off by default with retention days,history,must,no,no,spec 15.4
-Search and filter calls,history,must,partial,no,spec FR-HISTORY-002
-Mask caller phone numbers in lists,history,must,no,no,spec 13.14
+Search and filter calls,history,must,partial,yes,"spec FR-HISTORY-002; built: outcome, transferred, date range and text search"
+Mask caller phone numbers in lists,history,must,no,yes,spec 13.14; built: staff see only the last four digits
 CSV export of calls and orders,history,should,no,no,spec FR-HISTORY-006
 Call analytics tiles and chart,analytics,should,yes,no,S27
 Order analytics (volume avg order value top items conversion),analytics,could,yes,no,orders overview
 Usage and cost per tenant,analytics,should,no,no,spec FR-ADMIN-008
-Test the agent in the browser,testing,should,yes,no,S22 Try Your Agent
+Test the agent in the browser,testing,should,yes,partial,S22 Try Your Agent; built: guided step-by-step test of the AI's tools (S22); a live browser call needs Twilio
 Test by calling the real number,testing,must,yes,no,
-Test orders that never reach the kitchen,testing,should,no,no,Maple has no test mode
+Test orders that never reach the kitchen,testing,should,no,yes,"Maple has no test mode; built: test flag: dashed Test ticket, no chime, never sent to Square (enforced in domain and database)"
 Order confirmation text to the caller,notifications,could,yes,no,needs 10DLC registration (1-4 weeks)
-Staff alert for failed or uncertain orders,notifications,must,no,no,spec 5.5
+Staff alert for failed or uncertain orders,notifications,must,no,partial,spec 5.5; built: alerts bell in the header; SMS and email fan-out with the backend
 In-app help,support,could,yes,no,S31
 Verify and dedupe Square and Twilio webhooks,platform,must,yes,no,Maple signs outbound HMAC-SHA256; clone verifies inbound
 Public partner API,platform,could,yes,no,Maple Developer API

@@ -17,10 +17,12 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
           Skip to content
         </a>
         <div className="flex min-h-dvh">
-          <aside className="sticky top-0 hidden h-dvh w-(--ds-sidebar) shrink-0 overflow-y-auto border-r border-border bg-surface lg:block">
-            <Suspense fallback={<SidebarSkeleton />}>
-              <Sidebar />
-            </Suspense>
+          <aside className="hidden w-(--ds-sidebar) shrink-0 border-r border-border bg-surface lg:block">
+            <div className="sticky top-0 h-dvh overflow-y-auto">
+              <Suspense fallback={<SidebarSkeleton />}>
+                <Sidebar />
+              </Suspense>
+            </div>
           </aside>
           <div className="flex min-w-0 flex-1 flex-col">
             <Suspense fallback={<HeaderSkeleton />}>

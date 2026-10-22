@@ -55,7 +55,8 @@ ${colorVars('dark').replace(/^/gm, '  ')}
   }
 }
 
-:root[data-theme="dark"] {
+/* Any element can opt into dark (the kitchen view does), not only the page root. */
+[data-theme="dark"] {
   color-scheme: dark;
 ${colorVars('dark')}
 }
