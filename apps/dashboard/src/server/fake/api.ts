@@ -207,7 +207,10 @@ export async function searchNumbers(areaCode: string): Promise<AvailableNumber[]
   await ctx("numbers.buy");
   if (!/^[2-9]\d{2}$/.test(areaCode)) throw new InputError("Enter a three-digit US area code.", "areaCode");
   if (areaCode === "999") return [];
-  return [37, 58, 64, 81, 93].map((n) => ({ e164: `+1${areaCode}55501${n}`.slice(0, 12), locality: "Sample locality" }));
+  const owned = new Set(Object.values(store().state.phoneNumbers).flat().map((p) => p.e164));
+  return [37, 58, 64, 81, 93]
+    .map((n) => ({ e164: `+1${areaCode}55501${n}`, locality: "Sample locality" }))
+    .filter((n) => !owned.has(n.e164));
 }
 
 export async function buyNumber(e164: string): Promise<PhoneNumber> {
