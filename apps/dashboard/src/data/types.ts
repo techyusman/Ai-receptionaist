@@ -252,6 +252,9 @@ export type Analytics = {
 
 export type Page<T> = { items: T[]; nextCursor: string | null; total: number };
 
+/** What every Server Action returns: data, or a message (with the field it belongs to, if any). */
+export type ActionResult<T = null> = { ok: true; data: T } | { ok: false; message: string; field?: string };
+
 /** Live events pushed to the dashboard (SSE now, the API's SSE later). */
 export type LiveEvent =
   | { type: "order"; id: string; status: string; isTest: boolean }

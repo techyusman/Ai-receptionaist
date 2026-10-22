@@ -6,7 +6,9 @@ import { z } from "zod";
 import { Forbidden } from "./auth";
 import { InputError } from "./api";
 
-export type ActionResult<T = null> = { ok: true; data: T } | { ok: false; message: string; field?: string };
+import type { ActionResult } from "@/data/types";
+
+export type { ActionResult };
 
 /**
  * Runs a mutation for a Server Action: refreshes the page on success and turns expected failures

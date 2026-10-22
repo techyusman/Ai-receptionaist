@@ -84,10 +84,13 @@ export function Textarea({
   className,
   maxLength,
   defaultValue,
+  value,
   onChange,
   ...props
 }: React.ComponentProps<"textarea">) {
-  const [length, setLength] = useState(String(defaultValue ?? "").length);
+  // Controlled fields count their value; uncontrolled ones track typing.
+  const [typedLength, setLength] = useState(String(defaultValue ?? "").length);
+  const length = value !== undefined ? String(value).length : typedLength;
   const near = maxLength !== undefined && maxLength - length <= 20;
   return (
     <div className="flex flex-col gap-1">
@@ -95,6 +98,7 @@ export function Textarea({
         {...useFieldProps()}
         maxLength={maxLength}
         defaultValue={defaultValue}
+        value={value}
         onChange={(e) => {
           setLength(e.target.value.length);
           onChange?.(e);

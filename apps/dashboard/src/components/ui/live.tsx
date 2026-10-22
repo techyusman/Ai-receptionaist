@@ -66,7 +66,7 @@ export function SyncIndicator({
   onResync?: () => void;
 }) {
   const now = useNow();
-  const ago = updatedAt ? relative(minutesAgo(updatedAt, now)) : "never";
+  const ago = updatedAt ? relative(minutesAgo(updatedAt, now)).replace("Just now", "just now") : "never";
   return (
     <div className="inline-flex items-center gap-2">
       <StatusPill domain="sync" value={state} size="sm" />
