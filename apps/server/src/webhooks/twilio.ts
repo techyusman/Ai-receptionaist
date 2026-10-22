@@ -2,6 +2,7 @@
 // full public URL plus the form fields) before anything is read, so nobody can create calls, end calls
 // or trigger transfers by posting to these URLs. The restaurant for a call always comes from the number
 // that was dialled, never from anything the caller or the request says.
+import { randomUUID } from "node:crypto";
 import { maybeOne, withSystem } from "@receptionist/db";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import parsePhone from "libphonenumber-js";
@@ -26,7 +27,7 @@ function verified(deps: Deps, req: FastifyRequest): Record<string, string> | nul
 }
 
 export function streamPass(deps: Deps, callId: string, resume = false): string {
-  return signStreamToken(deps.config.VOICE_STREAM_SECRET, { callId, exp: Date.now() + STREAM_PASS_SECONDS * 1000, resume });
+  return signStreamToken(deps.config.VOICE_STREAM_SECRET, { callId, exp: Date.now() + STREAM_PASS_SECONDS * 1000, resume, nonce: randomUUID() });
 }
 
 const normalise = (raw: string | undefined): string | null => {

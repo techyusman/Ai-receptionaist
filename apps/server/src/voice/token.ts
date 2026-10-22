@@ -4,7 +4,7 @@
 // they invented or reuse one after it has expired.
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-export type StreamClaim = { callId: string; exp: number; resume: boolean };
+export type StreamClaim = { callId: string; exp: number; resume: boolean; /** Spent when the stream opens, so a pass works once. */ nonce: string };
 
 const b64 = (s: string) => Buffer.from(s).toString("base64url");
 
@@ -24,7 +24,7 @@ export function verifyStreamToken(secret: string, token: string | undefined, now
   if (given.length !== expected.length || !timingSafeEqual(given, expected)) return null;
   try {
     const claim = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as StreamClaim;
-    if (typeof claim.callId !== "string" || typeof claim.exp !== "number" || claim.exp < now) return null;
+    if (typeof claim.callId !== "string" || typeof claim.nonce !== "string" || typeof claim.exp !== "number" || claim.exp < now) return null;
     return claim;
   } catch {
     return null;

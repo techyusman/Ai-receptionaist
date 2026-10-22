@@ -13,7 +13,7 @@ import { TokenCipher, keyFromBase64 } from "../src/crypto.ts";
 import type { Deps } from "../src/deps.ts";
 import { InlineQueue } from "../src/jobs/queue.ts";
 import { LiveBus } from "../src/live.ts";
-import { FakeEmail, FakeTwilio } from "../src/providers/fakes.ts";
+import { FakeEmail, FakeRealtime, FakeTwilio } from "../src/providers/fakes.ts";
 import { createSquareFactory } from "../src/providers/square-http.ts";
 import { SquareStub } from "./stubs/square-stub.ts";
 
@@ -33,6 +33,9 @@ export type Harness = {
   email: FakeEmail;
   jobs: InlineQueue;
   square: SquareStub | null;
+  realtime: FakeRealtime | null;
+  /** Starts the server on a free port so a real WebSocket can connect. Returns its base URL. */
+  listen(): Promise<string>;
   token(user: TestUser, overrides?: { aud?: string; iss?: string; expiresIn?: string }): Promise<string>;
   call(user: TestUser | null, method: string, url: string, body?: unknown): Promise<{ status: number; body: any }>;
   setNow(d: Date | null): void;
@@ -58,6 +61,7 @@ export async function startHarness(options: { configure?: (env: Record<string, s
   const twilio = new FakeTwilio(config.TWILIO_AUTH_TOKEN);
   const email = new FakeEmail();
   const jobs = new InlineQueue();
+  const realtime = options.realtime ? new FakeRealtime() : null;
   let square: SquareStub | null = null;
   if (options.square) {
     square = new SquareStub();
@@ -71,7 +75,7 @@ export async function startHarness(options: { configure?: (env: Record<string, s
     cipher: new TokenCipher({ current: 1, keys: new Map([[1, keyFromBase64(KEY_B64)]]) }),
     providers: {
       email, twilio,
-      realtime: options.realtime ? { connect: async () => { throw new Error("no model in this test"); } } : null,
+      realtime,
       square: square
         ? createSquareFactory({ apiVersion: config.SQUARE_API_VERSION, credentials: { SANDBOX: { applicationId: "sq0idp-test", applicationSecret: "sq0csp-test" } }, baseUrls: { SANDBOX: square.url, PRODUCTION: square.url }, timeoutMs: 3000, orderTimeoutMs: 1500 })
         : null,
@@ -93,7 +97,12 @@ export async function startHarness(options: { configure?: (env: Record<string, s
       .sign(privateKey);
 
   return {
-    td, db, app, deps, config, twilio, email, jobs, square, token,
+    td, db, app, deps, config, twilio, email, jobs, square, realtime, token,
+    async listen() {
+      await app.listen({ port: 0, host: "127.0.0.1" });
+      const addr = app.server.address() as { port: number };
+      return `127.0.0.1:${addr.port}`;
+    },
     async call(user, method, url, body) {
       const headers: Record<string, string> = {};
       if (user) headers.authorization = `Bearer ${await token(user)}`;

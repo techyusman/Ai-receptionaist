@@ -20,4 +20,6 @@ export type Deps = {
   jobs: JobQueue;
   /** Injected so tests can freeze or move time. */
   now: () => Date;
+  /** Timing overrides for the voice session; only tests set these. */
+  tuning?: { silenceMs?: number; maxCallMs?: number; drainMs?: number };
 };

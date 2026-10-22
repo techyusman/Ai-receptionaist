@@ -1,6 +1,7 @@
 // In-memory stand-ins used by tests and by the local dev stack. They record what they were asked to do.
 import twilio from "twilio";
 import type { EmailMessage, EmailSender } from "./email.ts";
+import type { RealtimeConnector, RealtimeSession } from "./realtime.ts";
 import type { AvailableNumber, NumberHooks, TwilioApi } from "./twilio.ts";
 
 export class FakeEmail implements EmailSender {
@@ -57,5 +58,49 @@ export class FakeTwilio implements TwilioApi {
   /** What Twilio would put in X-Twilio-Signature for this request. */
   sign(url: string, params: Record<string, string>) {
     return twilio.getExpectedTwilioSignature(this.authToken, url, params);
+  }
+}
+
+/** A scripted stand-in for the speech model: records what it was sent, and lets a test speak for it. */
+export class ScriptedModel implements RealtimeSession {
+  readonly sent: Record<string, any>[] = [];
+  #onEvent: ((e: Record<string, unknown>) => void) | null = null;
+  #onClose: ((code: number) => void) | null = null;
+  closed = false;
+  send(event: Record<string, unknown>) {
+    this.sent.push(event);
+  }
+  onEvent(h: (e: Record<string, unknown>) => void) {
+    this.#onEvent = h;
+  }
+  onClose(h: (code: number) => void) {
+    this.#onClose = h;
+  }
+  close() {
+    this.closed = true;
+  }
+  /** The model says something (an event, as the real API would send it). */
+  emit(e: Record<string, unknown>) {
+    this.#onEvent?.(e);
+  }
+  drop(code = 1011) {
+    this.#onClose?.(code);
+  }
+  ofType(type: string) {
+    return this.sent.filter((s) => s.type === type);
+  }
+}
+
+export class FakeRealtime implements RealtimeConnector {
+  readonly sessions: ScriptedModel[] = [];
+  failNext = false;
+  async connect() {
+    if (this.failNext) {
+      this.failNext = false;
+      throw new Error("model is down");
+    }
+    const s = new ScriptedModel();
+    this.sessions.push(s);
+    return s;
   }
 }

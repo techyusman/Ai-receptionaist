@@ -1,4 +1,5 @@
 // Twilio's call-progress webhooks: the call ending, and the result of a transfer to a person.
+import { transferToStaff } from "@receptionist/domain";
 import { maybeOne, one, withSystem } from "@receptionist/db";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { raiseAlert } from "../alerts.ts";
@@ -6,6 +7,7 @@ import { endCall } from "../calls/outcome.ts";
 import { addEvent } from "../calls/service.ts";
 import type { Deps } from "../deps.ts";
 import { signal } from "../live.ts";
+import { transition } from "../orders/service.ts";
 import { connectStream, hangUp, whisper } from "../voice/twiml.ts";
 import { publicUrl, streamPass, streamUrl } from "./twilio.ts";
 
@@ -52,21 +54,36 @@ export function registerTwilioCallWebhooks(app: FastifyInstance, deps: Deps) {
     if (!q.call || !q.transfer) return hangUp();
     const result = DIAL_RESULT[(p.DialCallStatus ?? "failed") as keyof typeof DIAL_RESULT] ?? "FAILED";
     const resumed = await withSystem(deps.db, async (tx) => {
-      const t = await maybeOne<{ id: string; restaurant_id: string; target_id: string | null; call_id: string }>(
-        tx, "select t.id, t.restaurant_id, t.target_id, t.call_id from transfers t join calls c on c.id = t.call_id where t.id = $1 and t.call_id = $2 and c.provider_call_sid = $3", [q.transfer, q.call, p.CallSid]);
+      const t = await maybeOne<{ id: string; restaurant_id: string; target_id: string | null; call_id: string; order_id: string | null; sms: boolean | null; e164: string }>(
+        tx,
+        `select t.id, t.restaurant_id, t.target_id, t.call_id, t.order_id, tt.sms_alert_on_miss as sms, t.destination_e164 as e164
+           from transfers t join calls c on c.id = t.call_id left join transfer_targets tt on tt.id = t.target_id
+          where t.id = $1 and t.call_id = $2 and c.provider_call_sid = $3`,
+        [q.transfer, q.call, p.CallSid],
+      );
       if (!t) return null;
       await tx.query("update transfers set result = $2, ended_at = now(), answered_at = case when $2 = 'CONNECTED' then now() else answered_at end where id = $1", [t.id, result]);
       await tx.query("update calls set transfer_status = $2, status = case when $2 = 'CONNECTED' then status else 'IN_PROGRESS' end where id = $1", [t.call_id, TRANSFER_STATUS[result]]);
       const loc = await one<{ location_id: string }>(tx, "select location_id from calls where id = $1", [t.call_id]);
       if (result === "CONNECTED") {
+        // The caller is with a person now; any draft order is theirs to finish, and the AI will not send it.
+        if (t.order_id) {
+          const draft = await maybeOne<{ local_status: string }>(tx, "select local_status from orders where id = $1", [t.order_id]);
+          if (draft && ["DRAFT", "NEEDS_CLARIFICATION", "READY_FOR_CONFIRMATION", "CUSTOMER_CONFIRMED"].includes(draft.local_status)) {
+            await transition(tx, t.order_id, (o) => transferToStaff(o, { actor: "SYSTEM", at: deps.now().toISOString(), reason: "Caller transferred to staff" }), { actor: "SYSTEM" });
+          }
+        }
         await addEvent(tx, t.call_id, t.restaurant_id, "transfer.connected", "STAFF", "A person took the call.");
         await signal(tx, loc.location_id, { type: "call", id: t.call_id });
         return false;
       }
       await addEvent(tx, t.call_id, t.restaurant_id, "transfer.missed", "SYSTEM", `Nobody picked up (${result.toLowerCase().replace("_", " ")}). The AI offered a callback.`);
       await raiseAlert(deps, tx, { restaurantId: t.restaurant_id, locationId: loc.location_id, kind: "TRANSFER_MISSED", severity: "WARNING", callId: t.call_id, message: "A caller asked for a person but nobody answered. The AI is offering to take a callback.", dedupeKey: `transfer-missed:${t.call_id}` });
-      return true;
+      return { sms: t.sms === true ? t.e164 : null };
     });
+    if (resumed && typeof resumed === "object" && resumed.sms) {
+      await deps.providers.twilio?.sendSms(resumed.sms, "A caller asked for a person on the restaurant's AI phone line, but nobody answered. Check Callbacks in the dashboard.").catch(() => undefined);
+    }
     if (resumed === null) return hangUp();
     if (!resumed) return hangUp();
     return deps.providers.realtime ? connectStream(streamUrl(deps), streamPass(deps, q.call, true), { resume: "1" }) : hangUp();

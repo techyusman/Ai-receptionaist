@@ -158,3 +158,62 @@ describe("the call ending", () => {
     assert.equal((await callRow(ordered.CallSid))!.outcome, "CALLBACK_REQUESTED", "an abandoned draft is not an order, but a promised callback is");
   });
 });
+
+describe("transfers to a person", () => {
+  async function transferFor(p: ReturnType<typeof newCall>, opts: { sms?: boolean; order?: boolean } = {}) {
+    await post("/webhooks/twilio/voice", p);
+    const call = (await callRow(p.CallSid))!;
+    return withSystem(h.db, async (tx) => {
+      const target = (await tx.query<{ id: string }>("insert into transfer_targets (restaurant_id, location_id, label, e164, sms_alert_on_miss) values ($1, $2, 'Front counter', '+13475550101', $3) returning id", [rid, lid, opts.sms ?? false])).rows[0]!;
+      let orderId: string | null = null;
+      if (opts.order) {
+        orderId = (await tx.query<{ id: string }>("insert into orders (restaurant_id, location_id, call_id, currency, pos_mode, is_test, customer_name) values ($1, $2, $3, 'USD', 'DASHBOARD_TICKET', false, 'Priya') returning id", [rid, lid, call.id])).rows[0]!.id;
+      }
+      const t = (await tx.query<{ id: string }>("insert into transfers (restaurant_id, call_id, order_id, target_id, destination_e164, reason, strategy) values ($1, $2, $3, $4, '+13475550101', 'CALLER_REQUEST', 'DIRECT') returning id", [rid, call.id, orderId, target.id])).rows[0]!;
+      await tx.query("update calls set status = 'TRANSFERRING', transfer_status = 'ATTEMPTED' where id = $1", [call.id]);
+      return { callId: call.id, transferId: t.id, orderId };
+    });
+  }
+
+  test("nobody picks up: the caller goes back to the AI, staff are alerted and, if asked, texted", async () => {
+    const p = newCall();
+    const x = await transferFor(p, { sms: true });
+    const res = await post(`/webhooks/twilio/transfer-result?call=${x.callId}&transfer=${x.transferId}`, { CallSid: p.CallSid, DialCallStatus: "no-answer" });
+    assert.match(res.body, /<Connect><Stream/);
+    assert.match(res.body, /name="resume" value="1"/);
+    const token = /name="token" value="([^"]+)"/.exec(res.body)![1]!;
+    assert.equal(verifyStreamToken(h.config.VOICE_STREAM_SECRET, token)?.resume, true);
+    const call = await withSystem(h.db, (tx) => maybeOne<{ status: string; transfer_status: string }>(tx, "select status, transfer_status from calls where id = $1", [x.callId]));
+    assert.deepEqual([call!.status, call!.transfer_status], ["IN_PROGRESS", "NO_ANSWER"]);
+    const alerts = await withSystem(h.db, (tx) => many<{ kind: string }>(tx, "select kind from alerts where call_id = $1", [x.callId]));
+    assert.deepEqual(alerts.map((a) => a.kind), ["TRANSFER_MISSED"]);
+    assert.equal(h.twilio.sms.filter((m) => m.to === "+13475550101").length, 1);
+  });
+
+  test("a person answers: the call ends as transferred, and the draft order is handed to staff, not sent", async () => {
+    const p = newCall();
+    const x = await transferFor(p, { order: true });
+    const res = await post(`/webhooks/twilio/transfer-result?call=${x.callId}&transfer=${x.transferId}`, { CallSid: p.CallSid, DialCallStatus: "completed", DialCallDuration: "90" });
+    assert.match(res.body, /<Hangup/);
+    const order = await withSystem(h.db, (tx) => maybeOne<{ local_status: string }>(tx, "select local_status from orders where id = $1", [x.orderId]));
+    assert.equal(order!.local_status, "TRANSFERRED_TO_STAFF");
+    await post("/webhooks/twilio/status", { CallSid: p.CallSid, CallStatus: "completed", CallDuration: "120" });
+    assert.equal((await callRow(p.CallSid))!.outcome, "TRANSFERRED");
+  });
+
+  test("the whisper tells the person who answers who is calling and what they ordered", async () => {
+    const p = newCall();
+    const x = await transferFor(p, { order: true });
+    await withSystem(h.db, async (tx) => {
+      const menu = await tx.query<{ id: string }>("insert into menu_items (restaurant_id, location_id, square_id, name, square_version, synced_at) values ($1, $2, 'I1', 'Latte', 1, now()) returning id", [rid, lid]);
+      const v = await tx.query<{ id: string }>("insert into menu_variations (restaurant_id, location_id, item_id, square_id, name, pricing_type, price_minor, currency, square_version, synced_at) values ($1, $2, $3, 'V1', 'Small', 'FIXED_PRICING', 450, 'USD', 1, now()) returning id", [rid, lid, menu.rows[0]!.id]);
+      await tx.query("insert into order_items (restaurant_id, order_id, line_no, variation_id, square_item_id, square_variation_id, item_name, variation_name, quantity, unit_price_minor) values ($1, $2, 1, $3, 'I1', 'V1', 'Latte', 'Small', 2, 450)", [rid, x.orderId, v.rows[0]!.id]);
+    });
+    const res = await post(`/webhooks/twilio/transfer-whisper?call=${x.callId}&transfer=${x.transferId}`, { CallSid: "CAchild", ParentCallSid: p.CallSid });
+    assert.match(res.body, /Priya asked to speak to a person/);
+    assert.match(res.body, /2 Latte/);
+    assert.equal((await post(`/webhooks/twilio/transfer-whisper?call=${x.callId}&transfer=${x.transferId}`, { CallSid: "CAchild", ParentCallSid: p.CallSid }, { sign: false })).statusCode, 403);
+    const wrong = await post(`/webhooks/twilio/transfer-whisper?call=${x.callId}&transfer=${x.transferId}`, { CallSid: "CAchild", ParentCallSid: "CAsomeoneelse" });
+    assert.match(wrong.body, /<Hangup/);
+  });
+});
