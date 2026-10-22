@@ -321,6 +321,10 @@ export async function saveFaq(input: Pick<Faq, "question" | "answer" | "aliases"
     throw new InputError("The end date must be after the start date.", "validUntil");
   }
   const list = (state.faqs[s.location.id] ??= []);
+  const same = (q: string) => q.trim().toLowerCase().replace(/[?.!\s]+$/, "");
+  if (list.some((f) => f.id !== input.id && same(f.question) === same(input.question))) {
+    throw new InputError("You already have this question. Edit that one instead, so the AI has one answer.", "question");
+  }
   if (input.id) {
     const row = list.find((f) => f.id === input.id);
     if (!row) throw new InputError("That question no longer exists.");

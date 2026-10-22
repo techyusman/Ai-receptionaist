@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { zonedTimeToUtc } from "@receptionist/domain";
 import { run } from "@/server/action";
 import * as api from "@/server/api";
 
@@ -10,18 +11,29 @@ import * as api from "@/server/api";
 
 const isoOrNull = z.string().datetime({ offset: true }).nullable();
 
+const localDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a date.").nullable();
+
 const faq = z.object({
   id: z.string().optional(),
   question: z.string().trim().min(3, "Write the question the way a caller would ask it.").max(300),
   answer: z.string().trim().min(1, "Add the answer the AI should give.").max(2000, "Keep answers under 2,000 characters."),
-  aliases: z.array(z.string().trim().min(1).max(120)).max(10),
+  aliases: z.array(z.string().trim().min(1).max(120)).max(10, "Ten other phrasings at most."),
   active: z.boolean(),
-  validFrom: isoOrNull,
-  validUntil: isoOrNull,
+  /** Local dates in the restaurant's time zone: from the start of one day to the end of another. */
+  startsOn: localDate,
+  endsOn: localDate,
 });
 
 export async function saveFaq(input: z.input<typeof faq>) {
-  return run(() => api.saveFaq(faq.parse(input)));
+  return run(async () => {
+    const { startsOn, endsOn, ...rest } = faq.parse(input);
+    const tz = (await api.getLocation()).timezone;
+    return api.saveFaq({
+      ...rest,
+      validFrom: startsOn ? zonedTimeToUtc(startsOn, "00:00", tz).toISOString() : null,
+      validUntil: endsOn ? zonedTimeToUtc(endsOn, "23:59", tz).toISOString() : null,
+    });
+  });
 }
 
 export async function deleteFaq(id: string) {
