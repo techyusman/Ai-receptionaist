@@ -25,3 +25,16 @@ data layer is the in-memory fake (`apps/dashboard/src/server/fake`) until `/repl
 | S20 | 2026-10-22 | done | The transfer itself (Twilio Dial + whisper) with the backend | Loop guard: refuses the AI's own number. |
 | S21 | 2026-10-22 | partial | Voice samples need the speech provider | – |
 | S30 | 2026-10-22 | done | – | – |
+| S42 | 2026-10-22 | done | The AI's own capture of callback requests (voice agent) | – |
+| S25 | 2026-10-22 | done | – | FAQ dates mean the restaurant's local day; added a DST-safe zonedTimeToUtc to the domain (spring gap and fall overlap tested). Duplicate questions now refused. |
+| S26 | 2026-10-22 | partial | Generate FAQs from a website (could) | Starter questions arrive as drafts with [brackets] and can't be saved until filled in. |
+| S28 | 2026-10-22 | done | – | Time inputs focus an inner segment, so :focus-visible never matched; added a focus-within ring for date and time fields. |
+| S23 | 2026-10-22 | done | Dayparts / menu availability windows | – |
+| S24 | 2026-10-22 | done | – | A toast above the drawer takes the first Escape (Radix layer order); the Close button always works. |
+| S43 | 2026-10-22 | done | Real invitation emails with the backend | – |
+| S44 | 2026-10-22 | done | – | – |
+| S02 | 2026-10-22 | done | – | “Phone orders today” first counted a transferred draft; now only orders that reached the restaurant. |
+| S04 | 2026-10-22 | partial | One-sitting wizard UI; today it's a checklist that opens each real screen | S07 (KYC) and S08 (card on file) dropped: no payments. |
+| S27 | 2026-10-22 | done | Usage and cost per tenant | Chart colours validated with the dataviz validator against our surfaces; deltas hidden when the previous period has no data. |
+| S16 | 2026-10-22 | done | – | One agent per location, so the agent “list” is the tabbed editor. |
+| S34–S38, S40 | – | not started | The voice agent (Twilio + Realtime) and SMS are backend work: /replica-backend | – |
