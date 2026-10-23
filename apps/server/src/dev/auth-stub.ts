@@ -82,6 +82,7 @@ export class AuthStub {
       return this.#send(res, 200, await this.#session(email));
     }
     if (p === "/auth/v1/logout") return this.#send(res, 204, null);
+    if (p.startsWith("/auth/v1/admin/users/") && req.method === "DELETE") return this.#send(res, 200, {});
     this.#send(res, 404, { msg: "not found" });
   }
 }

@@ -173,3 +173,27 @@ describe("when Square says no", () => {
     assert.ok((await alerts("POS_AUTH_EXPIRED")).length >= 1);
   });
 });
+
+describe("checking a stuck order again by hand", () => {
+  test("a manager can ask for an unclear order to be checked; a settled one is refused", async () => {
+    // The previous test broke the Square connection on purpose; put it back.
+    await withSystem(h.db, async (tx) => {
+      await tx.query("update pos_integrations set status = 'CONNECTED' where location_id = $1", [r.lid]);
+      await tx.query("update locations set ordering_mode = 'SQUARE' where id = $1", [r.lid]);
+    });
+    const order = await confirmedOrder(h, r);
+    h.square!.failure = "server-error-before-create";
+    await submitConfirmedOrder(h.deps, order.id);
+    h.square!.failure = "none";
+    h.jobs.pending.length = 0;
+    const res = await h.call(maya, "POST", `/orders/${order.id}/reconcile`);
+    assert.equal(res.status, 202);
+    assert.deepEqual(h.jobs.names(), ["order.reconcile"]);
+    await h.jobs.drain();
+    assert.equal((await reload(order.id))!.status, "SUBMITTED_TO_POS");
+    const again = await h.call(maya, "POST", `/orders/${order.id}/reconcile`);
+    assert.equal(again.status, 202, "a sent Square order can still be checked for visibility");
+    const draft = await confirmedOrder(h, r);
+    assert.equal((await h.call(maya, "POST", `/orders/${draft.id}/reconcile`)).status, 422);
+  });
+});

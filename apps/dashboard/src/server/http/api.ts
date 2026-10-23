@@ -263,3 +263,8 @@ export async function acceptInvitation(token: string): Promise<{ restaurantId: s
 export async function createRestaurant(input: { name: string; location: { name: string; timezone: string; address: Location["address"] } }): Promise<{ restaurantId: string; locationId: string }> {
   return post("/restaurants", input);
 }
+
+/** Deletes the signed-in person's own account (the API refuses for a restaurant's owner). */
+export async function deleteAccount(): Promise<void> {
+  await del("/me");
+}

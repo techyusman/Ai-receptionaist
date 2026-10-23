@@ -4,7 +4,7 @@ import { many, maybeOne, one, type Tx } from "@receptionist/db";
 import type { FastifyInstance } from "fastify";
 import { audit } from "../audit.ts";
 import type { Deps } from "../deps.ts";
-import { notFound } from "../errors.ts";
+import { notFound, rule } from "../errors.ts";
 import { idParam, lidParam, meta, parse, who } from "../http.ts";
 import { signal } from "../live.ts";
 import { loadOrder, loadOrdersByIds } from "../orders/repo.ts";
@@ -123,6 +123,21 @@ export function registerOrderRoutes(api: FastifyInstance, deps: Deps) {
       await signal(tx, a.locationId, { type: "order", id, status: order.status, isTest: order.isTest });
       return { ok: true };
     });
+  });
+
+  // "Check again" for an order whose fate is unclear: runs the same reconciliation as the scheduled job,
+  // with the same idempotency key, so pressing it can never create a second order.
+  api.post("/orders/:id/reconcile", { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } }, async (req, reply) => {
+    const { id } = parse(idParam, req.params);
+    const a = await deps.access.forResource(who(req), "order", id, "orders.manage");
+    await tenant(deps, a, async (tx) => {
+      const o = await maybeOne<{ local_status: string }>(tx, "select local_status from orders where id = $1", [id]);
+      if (!o) throw notFound();
+      if (!["SUBMISSION_UNKNOWN", "SUBMITTED_TO_POS", "POS_VISIBILITY_UNVERIFIED"].includes(o.local_status)) throw rule("Only an order whose fate is unclear can be checked again.");
+      await deps.jobs.enqueue("order.reconcile", { orderId: id }, { tx, singletonKey: `reconcile:${id}` });
+      await audit(tx, a, meta(req), { action: "orders.reconcile", targetType: "order", targetId: id, target: "Order", summary: "Asked the system to check an order with Square again." });
+    });
+    return reply.status(202).send({ ok: true });
   });
 
   api.post("/orders/:id/cancel", async (req) => {

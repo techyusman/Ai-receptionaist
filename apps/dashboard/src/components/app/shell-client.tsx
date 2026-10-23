@@ -2,6 +2,7 @@
 
 import { Bell, Check, ChevronsUpDown, CircleQuestionMark, Menu as MenuIcon, X } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Dialog as RDialog } from "radix-ui";
 import { useState, useTransition } from "react";
 import { signOut, switchLocation } from "@/app/actions/auth";
@@ -169,6 +170,7 @@ export function HelpButton() {
 /* User menu --------------------------------------------------------------------- */
 
 export function UserMenu({ name, role }: { name: string; role: string }) {
+  const router = useRouter();
   return (
     <div className="flex items-center gap-1">
       <ThemeToggle />
@@ -189,7 +191,10 @@ export function UserMenu({ name, role }: { name: string; role: string }) {
             <span className="sr-only md:hidden">{`${name}, ${role}. Account menu`}</span>
           </button>
         }
-        items={[{ label: "Sign out", onSelect: () => void signOut() }]}
+        items={[
+          { label: "Your account", onSelect: () => router.push("/account") },
+          { label: "Sign out", onSelect: () => void signOut() },
+        ]}
       />
     </div>
   );

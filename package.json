@@ -9,6 +9,9 @@
     "tokens": "node replica/design/build-tokens.mjs",
     "contrast": "python replica/design/contrast.py replica/design/tokens.json",
     "dev:dashboard": "npm run dev -w apps/dashboard",
-    "test": "npm test -w packages/domain && npm test -w packages/db"
+    "test": "npm test -w packages/domain && npm test -w packages/db",
+    "dev:stack": "npm run dev:stack -w apps/server",
+    "test:server": "npm test -w apps/server",
+    "migrate": "npm run migrate -w apps/server"
   }
 }

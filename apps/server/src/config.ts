@@ -23,6 +23,8 @@ const schema = z.object({
   SUPABASE_URL: z.url(),
   SUPABASE_JWKS_URL: optionalString,
   SUPABASE_JWT_AUDIENCE: z.string().default("authenticated"),
+  // Server-side only, never sent to a browser: lets a person delete their own sign-in.
+  SUPABASE_SERVICE_ROLE_KEY: optionalString,
 
   // 32 random bytes, base64. Square tokens are encrypted with it (AES-256-GCM).
   TOKEN_ENCRYPTION_KEY: z.string().min(40, "TOKEN_ENCRYPTION_KEY must be 32 random bytes, base64 encoded."),

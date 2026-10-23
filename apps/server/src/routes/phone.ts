@@ -81,6 +81,20 @@ export function registerPhoneRoutes(api: FastifyInstance, deps: Deps) {
     }
   });
 
+  // A short-lived token for a test call from the browser (Twilio Voice SDK). The client name carries the
+  // location, and the voice webhook only accepts it for that location's own number; such calls are tests.
+  api.post("/locations/:lid/test-call/token", { config: { rateLimit: { max: 20, timeWindow: "1 hour" } } }, async (req) => {
+    const { lid } = parse(lidParam, req.params);
+    const a = await deps.access.forLocation(who(req), lid, "agent.test");
+    const twilio = twilioOrThrow(deps);
+    const ttl = 600;
+    try {
+      return { token: twilio.voiceAccessToken(`test-${a.userId}-${lid}`, ttl), ttlSeconds: ttl };
+    } catch {
+      throw notConfigured("Browser test calls");
+    }
+  });
+
   api.patch("/phone-numbers/:id", async (req) => {
     const { id } = parse(idParam, req.params);
     const a = await deps.access.forResource(who(req), "phoneNumber", id, "numbers.buy");

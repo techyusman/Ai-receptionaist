@@ -24,9 +24,13 @@ const wait = async (cond: () => boolean, ms = 8000) => {
 
 before(async () => {
   td = await startTestDatabase();
-  queue = new PgBossQueue(td.url);
-  await queue.install();
+  // As in production: the owner installs the queue at migrate time; the worker only runs it.
+  const installer = new PgBossQueue(td.url, "install");
+  await installer.install();
+  await installer.stop();
   await grantQueueAccess(td.pool);
+  queue = new PgBossQueue(td.url, "worker");
+  await queue.connect();
   await queue.work(handlers, () => {});
   appDb = td.pool;
 });

@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import type { Deps } from "../deps.ts";
+import { registerAccountRoutes } from "./account.ts";
 import { registerAdminRoutes } from "./admin.ts";
 import { registerAgentRoutes } from "./agent.ts";
 import { registerAnalyticsRoutes } from "./analytics.ts";
@@ -22,6 +23,7 @@ import { registerTestAgentRoutes } from "./test-agent.ts";
 
 export async function registerRoutes(api: FastifyInstance, deps: Deps): Promise<void> {
   registerMeRoutes(api, deps);
+  registerAccountRoutes(api, deps);
   registerLocationRoutes(api, deps);
   registerHoursRoutes(api, deps);
   registerNoticeRoutes(api, deps);
