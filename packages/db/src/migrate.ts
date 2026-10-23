@@ -27,7 +27,8 @@ export async function migrate(pool: pg.Pool, dir: string = MIGRATIONS_DIR): Prom
       (await client.query<{ version: string; checksum: string }>("select version, checksum from schema_migrations")).rows.map((r) => [r.version, r.checksum]),
     );
     for (const file of files) {
-      const sql = readFileSync(join(dir, file), "utf8");
+      // Line endings differ between checkouts (Windows vs Linux); the migration is the same either way.
+      const sql = readFileSync(join(dir, file), "utf8").replace(/\r\n/g, "\n");
       const checksum = createHash("sha256").update(sql).digest("hex");
       const known = done.get(file);
       if (known) {

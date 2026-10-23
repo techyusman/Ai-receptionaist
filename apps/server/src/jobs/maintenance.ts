@@ -6,9 +6,9 @@ import type { Deps } from "../deps.ts";
 import { refreshTokens } from "../pos/integration.ts";
 
 /** Safety net for missed webhooks: ask every connected location for anything that changed. */
-export async function reconcileCatalogs(deps: Deps): Promise<number> {
+export async function reconcileCatalogs(deps: Deps, full = false): Promise<number> {
   const rows = await withSystem(deps.db, (tx) => many<{ location_id: string }>(tx, "select location_id from pos_integrations where status = 'CONNECTED' and pos_location_id is not null"));
-  for (const r of rows) await deps.jobs.enqueue("catalog.sync", { locationId: r.location_id, kind: "INCREMENTAL", trigger: "RECONCILE" }, { singletonKey: `sync:${r.location_id}` });
+  for (const r of rows) await deps.jobs.enqueue("catalog.sync", { locationId: r.location_id, kind: full ? "FULL" : "INCREMENTAL", trigger: full ? "SCHEDULE" : "RECONCILE" }, { singletonKey: `sync:${r.location_id}` });
   return rows.length;
 }
 

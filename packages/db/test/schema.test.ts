@@ -1,3 +1,4 @@
+// @ts-nocheck -- ported from a plain-JS script; the assertions are what matter here
 // Applies the migrations to a real Postgres 18 and checks the invariants the schema promises:
 // tenant isolation, the Square gate, order confirmation and versioning, idempotency, append-only logs.
 import { after, before, test } from "node:test";

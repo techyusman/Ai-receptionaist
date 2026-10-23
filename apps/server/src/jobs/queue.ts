@@ -5,7 +5,8 @@ import type { Tx } from "@receptionist/db";
 
 export type JobData = {
   "catalog.sync": { locationId: string; kind: "FULL" | "INCREMENTAL"; trigger: "CONNECT" | "WEBHOOK" | "SCHEDULE" | "MANUAL" | "RECONCILE" };
-  "catalog.reconcile": Record<string, never>;
+  /** full: also re-download the whole catalog (the nightly pass), not just ask what changed. */
+  "catalog.reconcile": { full?: boolean };
   "catalog.staleness": Record<string, never>;
   "square.refresh_tokens": Record<string, never>;
   "order.reconcile": { orderId: string };

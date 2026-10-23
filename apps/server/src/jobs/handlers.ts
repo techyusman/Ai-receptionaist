@@ -12,7 +12,7 @@ import type { JobHandlers } from "./queue.ts";
 export function buildHandlers(deps: Deps): JobHandlers {
   return {
     "catalog.sync": async (d) => void (await runCatalogSync(deps, d)),
-    "catalog.reconcile": async () => void (await reconcileCatalogs(deps)),
+    "catalog.reconcile": async (d) => void (await reconcileCatalogs(deps, d.full === true)),
     "catalog.staleness": async () => void (await flagStaleMenus(deps)),
     "square.refresh_tokens": async () => void (await renewTokens(deps)),
     "order.reconcile": async (d) => void (await reconcileOrder(deps, d.orderId)),
