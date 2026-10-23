@@ -2,6 +2,7 @@
 // is ours (a signed one-time pass naming a live call); a connection that stays silent is dropped.
 import type { FastifyInstance } from "fastify";
 import type { Deps } from "../deps.ts";
+import { activeCalls } from "./active.ts";
 import { VoiceSession } from "./session.ts";
 
 const START_DEADLINE_MS = 5000;
@@ -17,6 +18,7 @@ export function registerVoiceGateway(app: FastifyInstance, deps: Deps) {
         close: () => socket.close(),
       });
       live.add(session);
+      activeCalls.count = live.size;
       let started = false;
       const deadline = setTimeout(() => {
         if (!started) socket.close();
@@ -29,6 +31,7 @@ export function registerVoiceGateway(app: FastifyInstance, deps: Deps) {
       const end = () => {
         clearTimeout(deadline);
         live.delete(session);
+        activeCalls.count = live.size;
         void session.close("socket-closed");
       };
       socket.on("close", end);

@@ -24,8 +24,18 @@ const SCHEDULES: { name: JobName; cron: string; data: object }[] = [
 
 export class PgBossQueue implements JobQueue {
   readonly boss: PgBoss;
-  constructor(connectionString: string) {
-    this.boss = new PgBoss({ connectionString, application_name: "receptionist-jobs", max: 4 });
+  /**
+   * install: creates or upgrades the queue schema (run with the owner role, at migrate time).
+   * web: only adds jobs. worker: runs jobs and keeps schedules. Neither of the last two may alter the schema.
+   */
+  constructor(connectionString: string, role: "install" | "web" | "worker" = "worker") {
+    const mode = role === "install" ? {} : role === "web" ? { migrate: false, createSchema: false, supervise: false, schedule: false } : { migrate: false, createSchema: false };
+    this.boss = new PgBoss({ connectionString, application_name: `receptionist-${role}`, max: role === "web" ? 2 : 4, ...mode });
+  }
+
+  /** For the web process: connect without creating anything. */
+  async connect(): Promise<void> {
+    await this.boss.start();
   }
 
   /** Creates the queue tables if needed. Needs a role that can create schemas. */

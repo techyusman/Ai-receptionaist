@@ -85,7 +85,7 @@ export function SquareSettings({
             <p className="text-xs text-muted">
               You&apos;ll sign in to Square and approve read access to items and your locations, and permission to create orders. We never ask for payment access.
             </p>
-            <Button className="self-start" loading={action.pending} onClick={() => action.run(() => connectSquare(env), { success: "Square connected. Now pick a location." })}>
+            <Button className="self-start" loading={action.pending} onClick={() => action.run(() => connectSquare(env), { onDone: (d) => window.location.assign(d.url) })}>
               Connect Square
             </Button>
           </div>

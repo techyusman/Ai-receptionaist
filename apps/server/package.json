@@ -9,6 +9,7 @@
     "worker": "node src/worker.ts",
     "dev:stack": "node scripts/dev-stack.ts",
     "seed": "node scripts/seed.ts",
+    "migrate": "node scripts/migrate.ts",
     "test": "node --test --test-concurrency=1 \"test/**/*.test.ts\"",
     "typecheck": "tsc --noEmit -p ."
   },

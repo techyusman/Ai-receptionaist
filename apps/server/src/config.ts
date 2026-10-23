@@ -27,6 +27,12 @@ const schema = z.object({
   // 32 random bytes, base64. Square tokens are encrypted with it (AES-256-GCM).
   TOKEN_ENCRYPTION_KEY: z.string().min(40, "TOKEN_ENCRYPTION_KEY must be 32 random bytes, base64 encoded."),
   TOKEN_KEY_VERSION: z.coerce.number().int().min(1).max(32000).default(1),
+  // During a key rotation: the key for version TOKEN_KEY_VERSION - 1, so older tokens still decrypt.
+  TOKEN_ENCRYPTION_KEY_PREVIOUS: optionalString,
+  // The table owner, used only to run migrations and install the job queue. The API and worker use DATABASE_URL.
+  DATABASE_MIGRATE_URL: optionalString,
+  // How long a deploy waits for calls in progress to finish before the process exits.
+  DRAIN_SECONDS: z.coerce.number().int().min(0).max(3600).default(900),
   // Signs the one-time token that lets Twilio open the media stream for exactly one call.
   VOICE_STREAM_SECRET: z.string().min(32),
 

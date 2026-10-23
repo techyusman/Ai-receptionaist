@@ -146,9 +146,19 @@ export function registerTestAgentRoutes(api: FastifyInstance, deps: Deps) {
     await tenant(deps, a, (tx) => testOrder(tx, lid, oid));
     const res = await submitConfirmedOrder(deps, oid);
     if (res.order.callId) {
+      const callId = res.order.callId;
       await tenant(deps, a, async (tx) => {
-        await addEvent(tx, res.order.callId!, a.restaurantId, "tool.submit_confirmed_order", "AI", `Sent the order (${res.claim.toLowerCase().replace(/_/g, " ")}).`);
-        await tx.query("update calls set caller_name = coalesce(caller_name, $2) where id = $1", [res.order.callId, res.order.customer.name ?? null]);
+        await addEvent(tx, callId, a.restaurantId, "tool.submit_confirmed_order", "AI", `Sent the order (${res.claim.toLowerCase().replace(/_/g, " ")}).`);
+        await tx.query("update calls set caller_name = coalesce(caller_name, $2) where id = $1", [callId, res.order.customer.name ?? null]);
+        // A test call has no phone line to hang up: once the order is sent, the call is over.
+        if (res.claim !== "NOT_PLACED") {
+          const done = await endCall(tx, callId, "completed", null);
+          if (done.ended) {
+            await addEvent(tx, callId, a.restaurantId, "call.ended", "SYSTEM", "Test call ended after the order was sent.");
+            await deps.jobs.enqueue("call.finalize", { callId }, { tx });
+          }
+          await signal(tx, lid, { type: "call", id: callId });
+        }
       });
     }
     return { claim: res.claim, say: whatToSay(res.claim, res.order) };

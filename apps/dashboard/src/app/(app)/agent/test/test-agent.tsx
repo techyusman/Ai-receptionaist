@@ -11,6 +11,7 @@ import {
   type ModifierList,
   type Order,
   type Selection,
+  whatToSay,
 } from "@receptionist/domain";
 import { Bot, Phone, Search, Trash, User } from "lucide-react";
 import Link from "next/link";
@@ -503,12 +504,9 @@ function OrderPanel({
 
 function FinishedOrder({ order, money }: { order: Order; money: (m: number) => string }) {
   const claim = callerClaim(order);
-  const told: Record<string, string> = {
-    SENT_NOT_ACKNOWLEDGED: "“Your order is with the team now. See you soon!”",
-    RECEIVED: "“The team has your order. See you soon!”",
-    STOPPED: "Nothing was sent. The draft was dropped.",
-    UNCERTAIN: "“I'm checking that your order went through. Let me pass you to the team to make sure.”",
-  };
+  // The exact sentence the voice agent would say, from the same shared rule.
+  const told: Record<string, string> = { STOPPED: "Nothing was sent. The draft was dropped." };
+  if (claim !== "STOPPED") told[claim] = `“${whatToSay(claim, order)}”`;
   return (
     <div className="mb-2 flex flex-col gap-2 rounded-md border border-border p-4">
       <div className="flex flex-wrap items-center gap-2">

@@ -15,7 +15,7 @@ import { InlineQueue } from "../src/jobs/queue.ts";
 import { LiveBus } from "../src/live.ts";
 import { FakeEmail, FakeRealtime, FakeTwilio } from "../src/providers/fakes.ts";
 import { createSquareFactory } from "../src/providers/square-http.ts";
-import { SquareStub } from "./stubs/square-stub.ts";
+import { SquareStub } from "../src/dev/square-stub.ts";
 
 export const SUPABASE_URL = "https://project.supabase.test";
 const KEY_B64 = Buffer.alloc(32, 7).toString("base64");

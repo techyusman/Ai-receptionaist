@@ -3,3 +3,6 @@ node_modules/
 *.tsbuildinfo
 .env*
 !.env.example
+.dev-data/
+.dev-stack.log
+.dashboard.log

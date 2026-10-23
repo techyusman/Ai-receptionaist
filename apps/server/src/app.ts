@@ -6,6 +6,7 @@ import websocket from "@fastify/websocket";
 import Fastify, { type FastifyInstance } from "fastify";
 import { bearerToken } from "./http.ts";
 import type { Deps } from "./deps.ts";
+import { lifecycle } from "./lifecycle.ts";
 import { toProblem } from "./problems.ts";
 import { registerPublicRoutes } from "./routes/public.ts";
 import { registerRoutes } from "./routes/index.ts";
@@ -34,6 +35,17 @@ export async function buildApp(deps: Deps): Promise<FastifyInstance> {
     maxAge: 600,
   });
   await app.register(formbody);
+  // An action like "submit" often has nothing to send; an empty JSON body means {} rather than an error.
+  app.removeContentTypeParser("application/json");
+  app.addContentTypeParser("application/json", { parseAs: "string" }, (_req, body, done) => {
+    const text = typeof body === "string" ? body.trim() : "";
+    if (text === "") return done(null, {});
+    try {
+      done(null, JSON.parse(text));
+    } catch {
+      done(Object.assign(new Error("That request couldn't be read."), { statusCode: 400 }), undefined);
+    }
+  });
   await app.register(websocket, { options: { maxPayload: 1024 * 1024 } });
   await app.register(rateLimit, {
     global: true,
@@ -58,6 +70,7 @@ export async function buildApp(deps: Deps): Promise<FastifyInstance> {
   app.setNotFoundHandler((_req, reply) => reply.status(404).send({ error: { code: "NOT_FOUND", message: "Not found." } }));
 
   app.get("/healthz", { config: { rateLimit: false } }, async (_req, reply) => {
+    if (lifecycle.draining) return reply.status(503).send({ ok: false, draining: true });
     try {
       await deps.db.query("select 1");
       return { ok: true };

@@ -2,7 +2,7 @@
 // catalog list and search, order pricing, order creation with idempotency, and failures on demand.
 import { createHash, randomUUID } from "node:crypto";
 import { createServer, type IncomingMessage, type Server } from "node:http";
-import type { CatalogObject } from "../../src/providers/square.ts";
+import type { CatalogObject } from "../providers/square.ts";
 
 type Failure = "none" | "timeout-after-create" | "server-error-before-create" | "bad-request" | "unauthorized";
 type Json = Record<string, any>;
@@ -19,14 +19,16 @@ export class SquareStub {
   revoked: string[] = [];
   requests: { method: string; path: string; version: string | undefined; auth: string | undefined; body: Json | null }[] = [];
   failure: Failure = "none";
+  /** Local development only: accept any token, so a restarted stand-in still knows the café's connection. */
+  acceptAnyToken = false;
   taxRate = 0.08875;
   seq = 0;
   /** Set to an ISO time to make catalog search report only newer objects. */
   merchantId = "MSAMPLE";
 
-  async start(): Promise<void> {
+  async start(port = 0): Promise<void> {
     this.server = createServer((req, res) => void this.#handle(req, res));
-    await new Promise<void>((r) => this.server.listen(0, "127.0.0.1", r));
+    await new Promise<void>((r) => this.server.listen(port, "127.0.0.1", r));
     const addr = this.server.address() as { port: number };
     this.url = `http://127.0.0.1:${addr.port}`;
   }
@@ -76,11 +78,19 @@ export class SquareStub {
   async #route(req: IncomingMessage, url: URL, body: Json | null, send: (s: number, j: Json) => void, fail: (s: number, c: string, d?: string) => void, res: import("node:http").ServerResponse): Promise<void> {
     const p = url.pathname;
     const m = req.method;
+    // Square's consent screen, simulated: the "seller" approves at once and is sent back with a code.
+    if (p === "/oauth2/authorize" && m === "GET") {
+      const back = new URL(url.searchParams.get("redirect_uri") ?? "");
+      back.searchParams.set("code", "good-code");
+      back.searchParams.set("state", url.searchParams.get("state") ?? "");
+      res.writeHead(302, { location: back.toString() });
+      return void res.end();
+    }
     if (p === "/oauth2/token" && m === "POST") {
       if (body?.grant_type === "authorization_code") {
         if (body.code !== "good-code") return fail(400, "INVALID_GRANT", "bad code");
       } else if (body?.grant_type === "refresh_token") {
-        if (!this.refreshTokens.has(body.refresh_token)) return fail(401, "INVALID_GRANT", "bad refresh token");
+        if (!this.acceptAnyToken && !this.refreshTokens.has(body.refresh_token)) return fail(401, "INVALID_GRANT", "bad refresh token");
       } else return fail(400, "UNSUPPORTED_GRANT_TYPE");
       const access = `access-${++this.seq}`;
       const refresh = `refresh-${this.seq}`;
@@ -94,7 +104,7 @@ export class SquareStub {
       return send(200, { success: true });
     }
     const token = (req.headers.authorization ?? "").replace(/^Bearer /, "");
-    if (this.failure === "unauthorized" || !this.validAccess.has(token)) return fail(401, "UNAUTHORIZED", "token invalid");
+    if (this.failure === "unauthorized" || (!this.acceptAnyToken && !this.validAccess.has(token)) || !token) return fail(401, "UNAUTHORIZED", "token invalid");
     if (p === "/v2/merchants/me") return send(200, { merchant: { id: this.merchantId, business_name: "Third Space" } });
     if (p === "/v2/locations") return send(200, { locations: this.locations });
     if (p === "/v2/catalog/list") {

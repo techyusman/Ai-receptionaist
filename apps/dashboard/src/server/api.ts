@@ -1,6 +1,5 @@
 import "server-only";
 
-// The data layer every screen calls. Today it's the in-memory fake with seed data. replica-backend
-// swaps this one line for the HTTP client against the Fastify API (same function names and types),
-// so no screen code changes.
-export * from "./fake/api";
+// The data layer every screen calls: the HTTP client for the API (apps/server), with the same function
+// names and types the fake layer had, so no screen code changed when it was swapped in.
+export * from "./http/api";

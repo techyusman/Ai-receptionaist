@@ -78,3 +78,14 @@ describe("sign-up and /me", () => {
     assert.ok(r.body.error.field);
   });
 });
+
+describe("request bodies", () => {
+  test("an action with an empty JSON body is read as {}, and broken JSON is a 400", async () => {
+    const tok = await h.token(maya);
+    const empty = await h.app.inject({ method: "POST", url: `/api/v1/locations/${lid}/faqs/templates`, headers: { authorization: `Bearer ${tok}`, "content-type": "application/json" } });
+    assert.equal(empty.statusCode, 200);
+    const broken = await h.app.inject({ method: "POST", url: `/api/v1/locations/${lid}/faqs`, headers: { authorization: `Bearer ${tok}`, "content-type": "application/json" }, payload: "{not json" });
+    assert.equal(broken.statusCode, 400);
+    assert.equal(JSON.parse(broken.body).error.code, "VALIDATION");
+  });
+});

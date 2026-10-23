@@ -12,7 +12,15 @@ async function AlreadySignedIn() {
   return null;
 }
 
-export default function LoginPage() {
+// Shown only when the local dev stack is running (it sets this), never on a real deployment.
+const DEV_HINT = process.env.DEV_SIGN_IN_HINT === "1";
+
+async function LoginWithNext({ searchParams }: { searchParams: PageProps<"/login">["searchParams"] }) {
+  const next = (await searchParams).next;
+  return <LoginForm sampleData={DEV_HINT} next={typeof next === "string" ? next : undefined} />;
+}
+
+export default function LoginPage({ searchParams }: PageProps<"/login">) {
   return (
     <main className="grid min-h-dvh place-items-center bg-canvas px-4 py-10">
       <Suspense fallback={null}>
@@ -23,7 +31,9 @@ export default function LoginPage() {
           <h1 className="text-xl text-fg">Sign in</h1>
           <p className="text-sm text-muted">Your restaurant&apos;s AI receptionist: calls, orders and settings.</p>
         </div>
-        <LoginForm sampleData />
+        <Suspense fallback={<LoginForm sampleData={DEV_HINT} />}>
+          <LoginWithNext searchParams={searchParams} />
+        </Suspense>
       </div>
     </main>
   );

@@ -11,6 +11,13 @@ export function keyFromBase64(b64: string): Buffer {
   return key;
 }
 
+/** The current key, plus the previous one while tokens are being re-encrypted after a rotation. */
+export function keyringFrom(c: { TOKEN_ENCRYPTION_KEY: string; TOKEN_KEY_VERSION: number; TOKEN_ENCRYPTION_KEY_PREVIOUS?: string | undefined }): Keyring {
+  const keys = new Map<number, Buffer>([[c.TOKEN_KEY_VERSION, keyFromBase64(c.TOKEN_ENCRYPTION_KEY)]]);
+  if (c.TOKEN_ENCRYPTION_KEY_PREVIOUS && c.TOKEN_KEY_VERSION > 1) keys.set(c.TOKEN_KEY_VERSION - 1, keyFromBase64(c.TOKEN_ENCRYPTION_KEY_PREVIOUS));
+  return { current: c.TOKEN_KEY_VERSION, keys };
+}
+
 export class TokenCipher {
   readonly version: number;
   readonly #keys: ReadonlyMap<number, Buffer>;
