@@ -154,7 +154,8 @@ Backend running (development).
   Sample café  ${seeded.created ? "created" : "already there"} (restaurant ${seeded.restaurantId})
 
 Run the dashboard against it (in another terminal):
-  API_BASE_URL=http://localhost:${PORTS.api} SUPABASE_URL=${auth.url} SUPABASE_ANON_KEY=dev npm run dev:dashboard
+  npm run dev:dashboard          then open http://localhost:3000
+  (its settings for this stack are in apps/dashboard/.env.development)
 Then sign in as ${SEED_PEOPLE.map((p) => `${p.email} (${p.role.toLowerCase()})`).join(", ")}.
 `);
 
