@@ -1,6 +1,6 @@
 # Parity: the clone against Maple
 
-Date: 2026-10-24  Build: e35dd64  Matrix: `replica/features.csv` (121 rows)
+Date: 2026-10-24  Build: f3d97e1  Matrix: `replica/features.csv` (121 rows)
 Tools: `parity.py` (feature score), `imgdiff.py` (layout score; not run, see below).
 
 ## Verdict: not shippable yet

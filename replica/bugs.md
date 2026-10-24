@@ -27,7 +27,7 @@ test that failed before it and passes after; the test is named under Evidence.
 - Severity: S1
 - Flow / case: all (found while running F03 against the dev stack)
 - Screen: none (server process)
-- Build: d4b86e0  Browser / device: n/a
+- Build: 590e364  Browser / device: n/a
 
 Steps
 1. Start the API or worker (`npm run dev:stack`).
@@ -39,14 +39,14 @@ process exits. Every live call on that instance drops.
 Evidence: `apps/server/test/queue.test.ts` "BUG-001: a database error inside the queue is logged, not
 thrown as an uncaught 'error' event" (failed before: no listener; passes after). Log line after the fix: `{"level":"error","msg":"job queue error","role":"worker","err":"read ECONNRESET"}`.
 Suspected cause: `PgBossQueue` never subscribed to `boss.on("error")`.
-Status: fixed in d5b052f
+Status: fixed in 15cb2f9
 
 ### BUG-002: Time-zone pickers have no accessible name
 
 - Severity: S3
 - Flow / case: F01 / F01-H1, X-2
 - Screen: /welcome (S03), /location (S30)
-- Build: d4b86e0  Browser / device: Edge, 1440 px
+- Build: 590e364  Browser / device: Edge, 1440 px
 
 Steps
 1. Sign in with a new email and open /welcome (or open /location as the owner).
@@ -58,14 +58,14 @@ announce an unnamed combo box.
 Evidence: `e2e/f01-onboarding.spec.ts` "F01-E1/E2/E3/E4" (axe scan) failed with select-name; passes after.
 Suspected cause: the raw `<select>` skipped the form field's id/aria wiring. Fixed with a `NativeSelect`
 primitive that takes it from `FormField` like `Input` does.
-Status: fixed in d5b052f
+Status: fixed in 15cb2f9
 
 ### BUG-003: A restaurant name with an emoji fails with a server error (local Postgres)
 
 - Severity: S2
 - Flow / case: F01 / F01-E3
 - Screen: /welcome (S03)
-- Build: d4b86e0  Browser / device: Edge, 1440 px
+- Build: 590e364  Browser / device: Edge, 1440 px
 
 Steps
 1. Run the dev stack on Windows (`npm run dev:stack`).
@@ -79,14 +79,14 @@ Evidence: `apps/server/test/api.test.ts` "BUG-003 a double-clicked sign-up"; `e2
 Suspected cause: embedded Postgres ran `initdb` with the Windows default encoding. Supabase is UTF-8, so
 production was not affected, but nothing stopped a non-UTF-8 database being used. Fixed: `initdb` gets
 `--encoding=UTF8 --locale=C`, and migrations now refuse to run on a database that isn't UTF-8.
-Status: fixed in d5b052f
+Status: fixed in 15cb2f9
 
 ### BUG-004: Adding a phone number fails with "That already exists." in the dev stack
 
 - Severity: S3 (dev and test environments only)
 - Flow / case: F01 / F01-H2
 - Screen: /agent/phone (S24)
-- Build: d4b86e0  Browser / device: Edge, 1440 px
+- Build: 590e364  Browser / device: Edge, 1440 px
 
 Steps
 1. Start the dev stack (it seeds Third Space with one phone number).
@@ -99,14 +99,14 @@ Evidence: `e2e/f01-onboarding.spec.ts` "F01-H2" failed with the message; screens
 Suspected cause: the fake Twilio numbered its purchases `PN000…001`, `PN000…002`, the same id the seed gives
 Third Space's number, so the first purchase broke the unique `provider_sid`. Fake ids are now random, as
 Twilio's are.
-Status: fixed in d5b052f
+Status: fixed in 15cb2f9
 
 ### BUG-005: A busy shared login gets throttled and the whole dashboard turns into an error page
 
 - Severity: S2
 - Flow / case: F01 / F01-H4, F03-E5, F03-E13 (Live orders in a rush)
 - Screen: every signed-in screen; worst on Live orders (S11) and the kitchen screen (S41)
-- Build: d4b86e0  Browser / device: Edge, 1440 px
+- Build: 590e364  Browser / device: Edge, 1440 px
 
 Steps
 1. Sign in as one person (or share one staff login across several screens, as kitchens do).
@@ -126,14 +126,14 @@ dashboard's fan-out; and no error boundary anywhere in the dashboard. Fixed: the
 per person; the dashboard waits and retries a read once on 429; `error.tsx` boundaries keep the sidebar and
 header, offer Try again and retry by themselves every 15 s (so an unattended kitchen screen comes back);
 `/api/live` answers "come back in 5 s" instead of an error.
-Status: fixed in d5b052f
+Status: fixed in 15cb2f9
 
 ### BUG-006: Live orders stops updating for good after one refused connection
 
 - Severity: S2
 - Flow / case: F03 / F03-E14 (and F03-E5)
 - Screen: Live orders (S11), kitchen screen (S41)
-- Build: d4b86e0  Browser / device: Edge, 1024 px
+- Build: 590e364  Browser / device: Edge, 1024 px
 
 Steps
 1. Sign in as staff and open Live orders.
@@ -150,14 +150,14 @@ it shows in about 10 s.
 Suspected cause: `/api/live` passed upstream failures on as 502, and `LiveRefresher` had no error handler.
 Fixed: the route answers "come back in 5 s" for anything short of signed out, and the refresher re-opens a
 closed stream after 10 s and refreshes once on reconnect to catch up on what it missed.
-Status: fixed in d5b052f
+Status: fixed in 15cb2f9
 
 ### BUG-007: Accepted tickets on Live orders fail colour contrast
 
 - Severity: S3
 - Flow / case: F03 / F03-H1, X-2
 - Screen: Live orders (S11), kitchen screen (S41)
-- Build: d4b86e0  Browser / device: Edge, 1440 px
+- Build: 590e364  Browser / device: Edge, 1440 px
 
 Steps
 1. Accept an order on Live orders.
@@ -169,14 +169,14 @@ drawn at 80% opacity, which pulls muted text below 4.5:1.
 Evidence: `e2e/f03-order.spec.ts` "F03-H1/F13-H1" axe scan failed; passes after.
 Suspected cause: settled tickets faded with `opacity-80`. Fixed: they sit on the muted surface instead
 (muted text on it is 5.79:1 light, 6.48:1 dark).
-Status: fixed in d5b052f
+Status: fixed in 15cb2f9
 
 ### BUG-008: Clearing a time in the weekly hours crashes the screen
 
 - Severity: S3
 - Flow / case: F11 / F11-E4
 - Screen: Hours and location (S30)
-- Build: d4b86e0  Browser / device: Edge, 1440 px
+- Build: 590e364  Browser / device: Edge, 1440 px
 
 Steps
 1. As an owner or manager, open Hours and location.
@@ -190,14 +190,14 @@ the old build with "This screen didn't load" and a page error; passes after.
 Suspected cause: the overlap check parsed every shift on each keystroke, and an empty time throws. Fixed:
 blank or half-typed times are reported ("Monday needs an opening and a closing time. Fix it to save.") and
 never parsed; a shift that opens and closes at the same minute gets its own message.
-Status: fixed in d5b052f
+Status: fixed in 15cb2f9
 
 ### BUG-009: A special day that opens and closes at the same time fails silently
 
 - Severity: S3
 - Flow / case: F11 / F11-E5
 - Screen: Hours and location (S30)
-- Build: d4b86e0  Browser / device: Edge, 1440 px
+- Build: 590e364  Browser / device: Edge, 1440 px
 
 Steps
 1. In Holidays and special days, pick a date, switch off Closed all day, set Opens and Closes to 09:00.
@@ -208,14 +208,14 @@ Actual: nothing happens. No toast, no field message, nothing added.
 Evidence: `e2e/f11-hours.spec.ts` "F11-E5" failed on the old build (no message within 10 s); passes after.
 Suspected cause: the API returns its error on the `opens` field, and the form only showed errors for
 `date`. Fixed: Opens and Closes show their own errors.
-Status: fixed in d5b052f
+Status: fixed in 15cb2f9
 
 ### BUG-010: A cut-off link to a call or an order shows the error screen
 
 - Severity: S3
 - Flow / case: F06 / F06-E4
 - Screen: Calls (S14), Orders (S16)
-- Build: d4b86e0  Browser / device: Edge, 1440 px
+- Build: 590e364  Browser / device: Edge, 1440 px
 
 Steps
 1. Open `/calls?call=not-a-real-id` (a link cut short when pasted into a message does this), or
@@ -228,7 +228,7 @@ Evidence: `e2e/f06-f07-calls-orders.spec.ts` "F06-E4" failed on the old build wa
 passes after.
 Suspected cause: the drawer loaders passed any id straight to the API. Fixed: an id that isn't a UUID is
 not found without asking. Related: the call search box now stops at the API's 80-character limit.
-Status: fixed in d5b052f
+Status: fixed in 15cb2f9
 
 ### BUG-011: Read-only switches and checkboxes are faded below readable contrast
 
@@ -236,7 +236,7 @@ Status: fixed in d5b052f
 - Flow / case: F05 / F05-H2, X-2
 - Screen: AI agent > Call handling (S20), AI agent > Orders (S21), and anywhere a switch, checkbox or radio
   option is disabled
-- Build: d4b86e0  Browser / device: Edge, 1440 px and 390 px
+- Build: 590e364  Browser / device: Edge, 1440 px and 390 px
 
 Steps
 1. Sign in as a manager and open AI agent > Call handling; look at "What we keep after a call" (owner-only
@@ -251,14 +251,14 @@ both widths (`/agent/orders`) failed on the old build; pass after.
 Suspected cause: the whole row was faded (`has-disabled:opacity-50`, `opacity-50`). Fixed: only the control
 fades (WCAG exempts an inactive control); its words switch to the muted text colour, which passes AA, and
 the reason keeps its warning colour (5.91:1).
-Status: fixed in d5b052f
+Status: fixed in 15cb2f9
 
 ### BUG-012: A day can be both closed and open; callers hear "closed", the screen lists hours
 
 - Severity: S3
 - Flow / case: F11 / F11-E2
 - Screen: Hours and location (S30); the voice agent's hours answers
-- Build: d4b86e0  Browser / device: Edge, 1440 px
+- Build: 590e364  Browser / device: Edge, 1440 px
 
 Steps
 1. Add a special day: 31 December, closed all day.
@@ -273,14 +273,14 @@ same date); `apps/server/test/config-routes.test.ts` "BUG-012 a day can't be bot
 Suspected cause: the database only stopped a second closure on the same date. Fixed: the API refuses hours
 on a closed day and a closure on a day with hours, with a message under Date. Split hours on one day still
 work.
-Status: fixed in d5b052f
+Status: fixed in 15cb2f9
 
 ### BUG-013: "Delete my account" shows the error screen when sign-in can't be removed
 
 - Severity: S3 (in the dev stack: every time)
 - Flow / case: X-5
 - Screen: Your account (S43)
-- Build: d4b86e0  Browser / device: Edge, 1280 px
+- Build: 590e364  Browser / device: Edge, 1280 px
 
 Steps
 1. Sign in as a staff member and open Your account.
@@ -297,14 +297,14 @@ Suspected cause: the dashboard turned any 5xx from the API into a bare `Error`, 
 handled input errors, so the API's own message was lost and the error escaped. Fixed: 502/503 become an
 `UnavailableError` carrying the API's message, which the delete action and every other action return as a
 message; the dev stack sets a service key (the sign-in stand-in accepts any).
-Status: fixed in d5b052f
+Status: fixed in 15cb2f9
 
 ### BUG-014: A deleted account comes back if its still-valid token is used
 
 - Severity: S2 (privacy: personal data the person asked us to delete is stored again)
 - Flow / case: X-5, X-6
 - Screen: none (API); seen as a 500 when signing in again after deleting an account
-- Build: d4b86e0  Browser / device: Edge, 1280 px
+- Build: 590e364  Browser / device: Edge, 1280 px
 
 Steps
 1. A staff member is signed in on two devices. On one, they delete their account.
@@ -322,14 +322,14 @@ the user check. Fixed: migration `0004_deleted_users.sql` keeps the deleted id o
 the API refuses those tokens ("This account was deleted.") and never re-creates the row; the cache now
 lives in the access service and forgets a person when they delete their account; `/me` answers 401 if the
 row has gone. The sign-in stand-in now gives an email a new id after deletion, as Supabase does.
-Status: fixed in d5b052f
+Status: fixed in 15cb2f9
 
 ### BUG-015: An error toast sits over the bottom-right of the page until dismissed
 
 - Severity: S4
 - Flow / case: F11-E2 (seen there); any form whose error has no field
 - Screen: every screen with a form near the bottom-right
-- Build: d4b86e0  Browser / device: Edge, 1440 px
+- Build: 590e364  Browser / device: Edge, 1440 px
 
 Steps
 1. On Hours and location, mark 31 December closed twice (before the fix below, that error was a toast).
