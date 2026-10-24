@@ -75,6 +75,7 @@ describe("hours", () => {
     assert.equal((await h.call(maya, "POST", `/locations/${lid}/special-hours`, { date: "2026-12-25", closed: true })).status, 201);
     const dup = await h.call(maya, "POST", `/locations/${lid}/special-hours`, { date: "2026-12-25", closed: true });
     assert.equal(dup.status, 409);
+    assert.equal(dup.body.error.field, "date", "shown under the date, not as a toast over the form");
     const partial = await h.call(maya, "POST", `/locations/${lid}/special-hours`, { date: "2026-12-31", closed: false, opens: "08:00" });
     assert.equal(partial.status, 400);
     // Monday 2026-10-19 12:00 in New York is 16:00 UTC: inside 07:00-15:00? No, 12:00 local is inside.
@@ -85,6 +86,21 @@ describe("hours", () => {
     h.setNow(new Date("2026-12-25T16:00:00Z")); // closed all day, even though it's a Friday with no shift anyway
     assert.equal((await h.call(maya, "GET", `/locations/${lid}/open-state`)).body.storeOpen, false);
     h.setNow(null);
+  });
+
+  test("BUG-012 a day can't be both closed and open: hours on a closed day, or a closure on a day with hours, are refused", async () => {
+    // Before: both were stored, the screen listed both, and callers were told "closed" (a closure wins).
+    assert.equal((await h.call(maya, "POST", `/locations/${lid}/special-hours`, { date: "2027-01-01", closed: true })).status, 201);
+    const hours = await h.call(maya, "POST", `/locations/${lid}/special-hours`, { date: "2027-01-01", closed: false, opens: "10:00", closes: "14:00" });
+    assert.equal(hours.status, 409);
+    assert.equal(hours.body.error.field, "date");
+    assert.equal((await h.call(maya, "POST", `/locations/${lid}/special-hours`, { date: "2027-01-02", closed: false, opens: "10:00", closes: "14:00" })).status, 201);
+    assert.equal((await h.call(maya, "POST", `/locations/${lid}/special-hours`, { date: "2027-01-02", closed: false, opens: "16:00", closes: "20:00" })).status, 201, "split hours on one day are fine");
+    const closure = await h.call(maya, "POST", `/locations/${lid}/special-hours`, { date: "2027-01-02", closed: true });
+    assert.equal(closure.status, 409);
+    const days = (await h.call(maya, "GET", `/locations/${lid}/special-hours`)).body as { date: string; closed: boolean }[];
+    assert.deepEqual(days.filter((d) => d.date === "2027-01-01").map((d) => d.closed), [true]);
+    assert.deepEqual(days.filter((d) => d.date === "2027-01-02").map((d) => d.closed), [false, false]);
   });
 });
 

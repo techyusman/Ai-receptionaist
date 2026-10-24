@@ -49,9 +49,11 @@ export async function buildApp(deps: Deps): Promise<FastifyInstance> {
   await app.register(websocket, { options: { maxPayload: 1024 * 1024 } });
   await app.register(rateLimit, {
     global: true,
-    max: 600,
+    max: 3000,
     timeWindow: "1 minute",
-    // One person at one desk should never hit this; a script hammering the API does.
+    // Per signed-in person. A dashboard page load is about 15 calls and every live event refreshes every
+    // open screen, so a kitchen login shared by four screens in a rush makes ~1,000 a minute. A script
+    // hammering the API still hits this.
     keyGenerator: (req) => req.identity?.userId ?? req.ip,
   });
 
@@ -82,17 +84,11 @@ export async function buildApp(deps: Deps): Promise<FastifyInstance> {
   registerPublicRoutes(app, deps);
 
   // Everything under /api/v1 needs a valid Supabase token. The user row is created on first sight.
-  const knownUsers = new Map<string, number>();
   await app.register(
     async (api) => {
       api.addHook("onRequest", async (req) => {
         req.identity = await deps.verify(bearerToken(req));
-        const seen = knownUsers.get(req.identity.userId);
-        if (!seen || seen < Date.now() - 60_000) {
-          await deps.access.ensureUser(req.identity);
-          knownUsers.set(req.identity.userId, Date.now());
-          if (knownUsers.size > 5000) knownUsers.clear();
-        }
+        await deps.access.ensureUser(req.identity);
       });
       await registerRoutes(api, deps);
     },

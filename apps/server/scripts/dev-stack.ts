@@ -2,7 +2,7 @@
 // Runs the whole backend on this machine with no accounts or keys: a real Postgres (embedded), a stand-in
 // for Supabase sign-in (every code is 246810), a stand-in for Square's sandbox, the API and the worker, and
 // the sample café. Emails and texts are printed here instead of being sent. Data persists in .dev-data/.
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { randomBytes } from "node:crypto";
 import { join } from "node:path";
 import EmbeddedPostgres from "embedded-postgres";
@@ -25,7 +25,9 @@ import { FakeTwilio } from "../src/providers/fakes.ts";
 import { createOpenAiRealtime } from "../src/providers/realtime-openai.ts";
 import { createSquareFactory } from "../src/providers/square-http.ts";
 
-const DATA = join(import.meta.dirname, "..", ".dev-data");
+// DEV_DATA_DIR lets the end-to-end tests run a separate copy; DEV_FRESH=1 starts it from the seed every time.
+const DATA = process.env.DEV_DATA_DIR ?? join(import.meta.dirname, "..", ".dev-data");
+if (process.env.DEV_FRESH === "1") rmSync(DATA, { recursive: true, force: true });
 const PORTS = { pg: Number(process.env.DEV_PG_PORT ?? 54329), auth: Number(process.env.DEV_AUTH_PORT ?? 54321), square: Number(process.env.DEV_SQUARE_PORT ?? 54330), api: Number(process.env.PORT ?? 4000) };
 const DASHBOARD = process.env.DASHBOARD_ORIGIN ?? "http://localhost:3000";
 const SQUARE_TOKENS = { access: "dev-square-access-token", refresh: "dev-square-refresh-token" };
@@ -39,7 +41,18 @@ const secrets: Secrets = existsSync(secretsFile)
 writeFileSync(secretsFile, JSON.stringify(secrets, null, 2));
 
 const pgDir = join(DATA, "pg");
-const pg = new EmbeddedPostgres({ databaseDir: pgDir, user: "postgres", password: "postgres", port: PORTS.pg, persistent: true, onLog: () => {} });
+// UTF-8 always: on Windows the default is WIN1252, which can't store an emoji in a restaurant's name.
+// io_method=sync: no I/O worker processes, which on Windows outlive a force-killed server and keep its port.
+const pg = new EmbeddedPostgres({
+  databaseDir: pgDir,
+  user: "postgres",
+  password: "postgres",
+  port: PORTS.pg,
+  persistent: true,
+  onLog: () => {},
+  initdbFlags: ["--encoding=UTF8", "--locale=C"],
+  postgresFlags: ["-c", "io_method=sync"],
+});
 const dbUrl = `postgres://postgres:postgres@127.0.0.1:${PORTS.pg}/postgres`;
 // If a previous run was killed, its Postgres may still be up on the same port: use it rather than fail.
 const alreadyUp = await (async () => {
@@ -72,6 +85,8 @@ await auth.start(PORTS.auth);
 const square = new SquareStub();
 square.catalog = thirdSpaceCatalog().map((o) => ({ ...o, updated_at: "2026-10-01T00:00:00Z" }));
 square.acceptAnyToken = true;
+// A second location, so a newly signed-up restaurant has one to claim (the sample café holds the first).
+square.locations.push({ id: "LSAMPLE0000002", name: "Third Space - Second Avenue", status: "ACTIVE", address: { address_line_1: "88 Second Avenue", locality: "New York", administrative_district_level_1: "NY" } });
 square.validAccess.add(SQUARE_TOKENS.access);
 square.refreshTokens.set(SQUARE_TOKENS.refresh, SQUARE_TOKENS.access);
 await square.start(PORTS.square);
@@ -85,6 +100,8 @@ const config = loadConfig({
   DASHBOARD_ORIGIN: DASHBOARD,
   DATABASE_URL: dbUrl,
   SUPABASE_URL: auth.url,
+  // The sign-in stand-in accepts any service key; without one, "Delete my account" can't work locally.
+  SUPABASE_SERVICE_ROLE_KEY: "dev-service-role-key",
   TOKEN_ENCRYPTION_KEY: secrets.tokenKey,
   VOICE_STREAM_SECRET: secrets.voiceSecret,
   SQUARE_WEBHOOK_SIGNATURE_KEY: "dev-square-signature-key",
@@ -98,6 +115,7 @@ const seeded = await seedThirdSpace(admin, { cipher, squareTokens: SQUARE_TOKENS
 class PrintingTwilio extends FakeTwilio {
   override async sendSms(to: string, body: string) {
     await super.sendSms(to, body);
+    auth.mailbox.push({ to, subject: "SMS", text: body, at: new Date().toISOString() });
     console.log(`[sms to ${to}] ${body}`);
   }
 }
@@ -111,7 +129,12 @@ const deps: Deps = {
   access: new AccessService(db),
   verify: createJwtVerifier({ keys: remoteJwks(`${auth.url}/auth/v1/.well-known/jwks.json`), issuer: `${auth.url}/auth/v1`, audience: "authenticated" }),
   providers: {
-    email: { send: async (m) => console.log(`[email to ${m.to}] ${m.subject}\n${m.text}\n`) },
+    email: {
+      send: async (m) => {
+        auth.mailbox.push({ to: m.to, subject: m.subject, text: m.text, at: new Date().toISOString() });
+        console.log(`[email to ${m.to}] ${m.subject}`);
+      },
+    },
     twilio: new PrintingTwilio(),
     square: createSquareFactory({ apiVersion: config.SQUARE_API_VERSION, credentials: { SANDBOX: { applicationId: "sq0idp-dev", applicationSecret: "sq0csp-dev" } }, baseUrls: { SANDBOX: square.url, PRODUCTION: square.url } }),
     realtime: config.OPENAI_API_KEY ? createOpenAiRealtime({ apiKey: config.OPENAI_API_KEY, model: config.OPENAI_REALTIME_MODEL }) : null,

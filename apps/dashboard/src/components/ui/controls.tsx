@@ -66,12 +66,13 @@ export function Checkbox({
   ...props
 }: React.ComponentProps<typeof RCheckbox.Root> & { label: string }) {
   return (
-    <label className={cn("inline-flex items-center gap-2 text-sm text-fg has-disabled:opacity-50", className)}>
+    // Disabled: the box fades, the words go muted (still AA), so a read-only setting stays readable.
+    <label className={cn("inline-flex items-center gap-2 text-sm text-fg has-disabled:text-muted", className)}>
       <RCheckbox.Root
         className={cn(
           "grid size-5 place-items-center rounded-sm border border-input bg-surface",
           "data-[state=checked]:border-accent data-[state=checked]:bg-accent data-[state=indeterminate]:border-accent data-[state=indeterminate]:bg-accent",
-          "text-on-accent disabled:cursor-not-allowed",
+          "text-on-accent disabled:cursor-not-allowed disabled:opacity-50",
           focusRing,
         )}
         {...props}
@@ -99,16 +100,17 @@ export function Switch({
   ...props
 }: React.ComponentProps<typeof RSwitch.Root> & { label: string; description?: string; pending?: boolean }) {
   return (
-    <label className={cn("flex items-start justify-between gap-4 has-disabled:opacity-50", className)}>
+    // Disabled: the switch fades, the words go muted (still AA), so a read-only setting stays readable.
+    <label className={cn("group flex items-start justify-between gap-4", className)}>
       <span className="flex flex-col">
-        <span className="text-sm font-semibold text-fg">{label}</span>
+        <span className="text-sm font-semibold text-fg group-has-disabled:text-muted">{label}</span>
         {description && <span className="text-xs text-muted">{description}</span>}
       </span>
       <RSwitch.Root
         aria-busy={pending || undefined}
         className={cn(
           "relative h-6 w-11 shrink-0 rounded-pill border border-input bg-surface-muted transition-colors duration-(--ds-motion-fast)",
-          "data-[state=checked]:border-accent data-[state=checked]:bg-accent disabled:cursor-not-allowed",
+          "data-[state=checked]:border-accent data-[state=checked]:bg-accent disabled:cursor-not-allowed disabled:opacity-50",
           pending && "opacity-70",
           focusRing,
         )}
@@ -148,7 +150,6 @@ export function RadioGroup({
                 "flex items-start gap-3",
                 variant === "cards" &&
                   "rounded-md border border-border bg-surface p-3 has-data-[state=checked]:border-accent has-data-[state=checked]:bg-accent-subtle",
-                disabled && "opacity-50",
               )}
             >
               <RRadio.Item
@@ -156,13 +157,15 @@ export function RadioGroup({
                 disabled={disabled}
                 className={cn(
                   "mt-0.5 grid size-5 shrink-0 place-items-center rounded-pill border border-input bg-surface data-[state=checked]:border-accent",
+                  "disabled:cursor-not-allowed disabled:opacity-50",
                   focusRing,
                 )}
               >
                 <RRadio.Indicator className="size-2.5 rounded-pill bg-accent" />
               </RRadio.Item>
               <span className="flex flex-col">
-                <span className="text-sm font-semibold text-fg">{o.title}</span>
+                {/* Unavailable: the radio fades, the words stay readable and say why. */}
+                <span className={cn("text-sm font-semibold", disabled ? "text-muted" : "text-fg")}>{o.title}</span>
                 {o.description && <span className="text-xs text-muted">{o.description}</span>}
                 {o.disabledReason && <span className="text-xs text-warning">{o.disabledReason}</span>}
               </span>

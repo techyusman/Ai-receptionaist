@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import type { ActionResult } from "@/server/action";
 import { getMe, readSession } from "@/server/auth";
-import { InputError } from "@/server/http/client";
+import { InputError, UnavailableError } from "@/server/http/client";
 import { deleteAccount as deleteAccountApi } from "@/server/http/api";
 import { chooseLocation, endSession, getAuth, startSession } from "@/server/session";
 import { AuthRateLimited, revoke, sendCode, verifyCode as verify } from "@/server/supabase";
@@ -67,7 +67,8 @@ export async function deleteAccount(): Promise<ActionResult> {
   try {
     await deleteAccountApi();
   } catch (e) {
-    if (e instanceof InputError) return { ok: false, message: e.message };
+    // Owning a restaurant, or the sign-in service being down: say so, never a broken screen.
+    if (e instanceof InputError || e instanceof UnavailableError) return { ok: false, message: e.message };
     throw e;
   }
   await endSession();

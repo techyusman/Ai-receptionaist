@@ -31,6 +31,9 @@ export class PgBossQueue implements JobQueue {
   constructor(connectionString: string, role: "install" | "web" | "worker" = "worker") {
     const mode = role === "install" ? {} : role === "web" ? { migrate: false, createSchema: false, supervise: false, schedule: false } : { migrate: false, createSchema: false };
     this.boss = new PgBoss({ connectionString, application_name: `receptionist-${role}`, max: role === "web" ? 2 : 4, ...mode });
+    // pg-boss reports a dropped connection as an "error" event; unheard, Node would crash the whole process.
+    // It reconnects on its own, so the right response is to log it and carry on.
+    this.boss.on("error", (e: Error) => console.error(JSON.stringify({ level: "error", msg: "job queue error", role, err: e.message })));
   }
 
   /** For the web process: connect without creating anything. */

@@ -57,7 +57,7 @@ after(async () => {
 
 test("schema invariants hold on a real Postgres", async () => {
   const tables = (await t.pool.query(`select count(*)::int n from pg_tables where schemaname = 'public' and tablename <> 'schema_migrations'`)).rows[0].n;
-  ok(`schema applies (${tables} tables)`, tables === 38);
+  ok(`schema applies (${tables} tables)`, tables === 39);
   const noRls = (await t.pool.query(`select tablename from pg_tables t join pg_class c on c.relname = t.tablename
     where schemaname = 'public' and tablename <> 'schema_migrations' and not (c.relrowsecurity and c.relforcerowsecurity)`)).rows;
   ok("every table has forced row level security", noRls.length === 0, JSON.stringify(noRls));

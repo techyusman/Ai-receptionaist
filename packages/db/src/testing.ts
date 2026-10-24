@@ -59,8 +59,8 @@ export async function startTestDatabase(options: { migrate?: boolean } = {}): Pr
   // Throwaway data: small WAL segments and no fsync keep each test database to a few megabytes and fast.
   const server = new EmbeddedPostgres({
     databaseDir: dir, user: "postgres", password: "postgres", port, persistent: false, onLog: () => {}, onError: () => {},
-    initdbFlags: ["--wal-segsize=1", "--no-sync"],
-    postgresFlags: ["-c", "fsync=off", "-c", "synchronous_commit=off", "-c", "full_page_writes=off", "-c", "max_wal_size=8MB", "-c", "min_wal_size=2MB"],
+    initdbFlags: ["--wal-segsize=1", "--no-sync", "--encoding=UTF8", "--locale=C"],
+    postgresFlags: ["-c", "fsync=off", "-c", "synchronous_commit=off", "-c", "full_page_writes=off", "-c", "max_wal_size=8MB", "-c", "min_wal_size=2MB", "-c", "io_method=sync"],
   });
   await server.initialise();
   await server.start();

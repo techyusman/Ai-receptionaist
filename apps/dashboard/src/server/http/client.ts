@@ -24,6 +24,17 @@ export class ForbiddenError extends Error {
 
 export class NotFoundError extends Error {}
 
+/** The API, or a service behind it (Square, Supabase), can't do this right now. Carries the API's message. */
+export class UnavailableError extends Error {
+  constructor(message = "That isn't available right now. Try again in a minute.") {
+    super(message);
+    this.name = "UnavailableError";
+  }
+}
+
+/** Ids in links are UUIDs; anything else (a mistyped or cut-off link) is simply not found. */
+export const isId = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
 function apiBase(): string {
   const url = process.env.API_BASE_URL;
   if (!url) throw new Error("API_BASE_URL must be set.");
@@ -32,7 +43,7 @@ function apiBase(): string {
 
 type Query = Record<string, string | number | boolean | null | undefined>;
 
-export async function apiFetch<T>(method: string, path: string, opts: { body?: unknown; query?: Query; token?: string } = {}): Promise<T> {
+export async function apiFetch<T>(method: string, path: string, opts: { body?: unknown; query?: Query; token?: string; retried?: boolean } = {}): Promise<T> {
   const token = opts.token ?? (await getAuth())?.access_token;
   if (!token) redirect("/login");
   const url = new URL(`${apiBase()}/api/v1${path}`);
@@ -44,6 +55,12 @@ export async function apiFetch<T>(method: string, path: string, opts: { body?: u
     cache: "no-store",
     signal: AbortSignal.timeout(20_000),
   });
+  if (res.status === 429 && method === "GET" && !opts.retried) {
+    // Busy for a moment (a rush on a login shared by several screens): wait as told, briefly, and read again.
+    const wait = Math.min(Number(res.headers.get("retry-after")) || 1, 3);
+    await new Promise((r) => setTimeout(r, wait * 1000));
+    return apiFetch<T>(method, path, { ...opts, retried: true });
+  }
   if (res.status === 204) return undefined as T;
   const body = (await res.json().catch(() => null)) as (T & Partial<ApiErrorBody>) | null;
   if (res.ok) return body as T;
@@ -52,6 +69,7 @@ export async function apiFetch<T>(method: string, path: string, opts: { body?: u
   if (res.status === 403) throw new ForbiddenError(err?.message);
   if (res.status === 404) throw new NotFoundError(err?.message ?? "Not found");
   if (res.status >= 400 && res.status < 500) throw new InputError(err?.message ?? "Check the details and try again.", err?.field);
+  if (res.status === 502 || res.status === 503) throw new UnavailableError(err?.message);
   throw new Error(`API ${method} ${path} failed with ${res.status}`);
 }
 

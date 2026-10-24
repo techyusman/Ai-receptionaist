@@ -6,9 +6,9 @@ import type {
   Settings, SetupTask, SpecialHours, SquareLocationOption, TransferTarget,
 } from "@/data/types";
 import { requireSession } from "../auth";
-import { del, get, orNull, patch, post, put } from "./client";
+import { del, get, isId, orNull, patch, post, put } from "./client";
 
-export { InputError } from "./client";
+export { InputError, UnavailableError } from "./client";
 
 // The real data layer: the same functions, names and types the screens used with the fake one, each a
 // call to the API as the signed-in person. Location-scoped calls use the location chosen in the header.
@@ -163,6 +163,7 @@ export async function getLiveTickets(): Promise<OrderSummary[]> {
   return get(`/locations/${await loc()}/live-tickets`);
 }
 export async function getOrder(id: string): Promise<OrderDetail | null> {
+  if (!isId(id)) return null;
   return orNull(get<OrderDetail>(`/orders/${id}`));
 }
 export async function acceptOrder(id: string) {
@@ -180,6 +181,7 @@ export async function listCalls(filter: CallFilter): Promise<Page<CallSummary>> 
   return get(`/locations/${await loc()}/calls`, { ...filter, transferred: filter.transferred ? "true" : undefined });
 }
 export async function getCall(id: string): Promise<CallDetail | null> {
+  if (!isId(id)) return null;
   return orNull(get<CallDetail>(`/calls/${id}`));
 }
 export async function listCallbacks(status: "OPEN" | "DONE" | "all" = "OPEN"): Promise<Callback[]> {

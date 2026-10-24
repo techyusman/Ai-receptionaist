@@ -8,7 +8,7 @@ import { useAction } from "@/components/app/use-action";
 import { Button, IconButton } from "@/components/ui/button";
 import { Switch } from "@/components/ui/controls";
 import { Card } from "@/components/ui/display";
-import { controlClass, FormField, Input, segmentedFocus, Textarea } from "@/components/ui/field";
+import { controlClass, FormField, Input, NativeSelect, segmentedFocus, Textarea } from "@/components/ui/field";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/toast";
 import type { Hours, Location, SpecialHours } from "@/data/types";
@@ -42,13 +42,13 @@ export function LocationDetails({ location, zones }: { location: Location; zones
           <Input value={d.name} onChange={(e) => set("name", e.target.value)} maxLength={120} />
         </FormField>
         <FormField label="Time zone" hint="Hours and order times use this zone.">
-          <select value={d.timezone} onChange={(e) => set("timezone", e.target.value)} className={cn(controlClass, "h-10")}>
+          <NativeSelect value={d.timezone} onChange={(e) => set("timezone", e.target.value)}>
             {zones.map((z) => (
               <option key={z} value={z}>
                 {z.replaceAll("_", " ")}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </FormField>
         <FormField label="Street address" error={save.fieldError("address")}>
           <Input value={d.line1} onChange={(e) => set("line1", e.target.value)} autoComplete="address-line1" />
@@ -103,9 +103,23 @@ export function LocationDetails({ location, zones }: { location: Location; zones
 
 /* Weekly hours ------------------------------------------------------------------ */
 
+const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+const complete = (s: Shift) => HHMM.test(s.opens) && HHMM.test(s.closes);
+
+/** What's wrong with a week of shifts, first things first. A blank or half-typed time is a problem to
+ * show, never something to parse. */
+function weekProblems(shifts: Shift[]): string[] {
+  const out: string[] = [];
+  for (const s of shifts) {
+    if (!complete(s)) out.push(`${WEEKDAYS[s.weekday]} needs an opening and a closing time.`);
+    else if (s.opens === s.closes) out.push(`${WEEKDAYS[s.weekday]} opens and closes at ${s.opens}.`);
+  }
+  return [...out, ...findOverlaps(shifts.filter((s) => complete(s) && s.opens !== s.closes)).map((o) => o.message)];
+}
+
 function WeekEditor({ shifts, onChange }: { shifts: Shift[]; onChange: (s: Shift[]) => void }) {
   const order = [1, 2, 3, 4, 5, 6, 0];
-  const overlaps = findOverlaps(shifts);
+  const problems = weekProblems(shifts);
   return (
     <div className="flex flex-col gap-1">
       {order.map((weekday) => {
@@ -130,7 +144,7 @@ function WeekEditor({ shifts, onChange }: { shifts: Shift[]; onChange: (s: Shift
                   <span className="text-sm text-muted">to</span>
                   <label className="sr-only" htmlFor={`c-${weekday}-${n}`}>{`${WEEKDAYS[weekday]} shift ${n + 1} closes`}</label>
                   <input id={`c-${weekday}-${n}`} type="time" value={s.closes} onChange={(e) => update(i, { closes: e.target.value })} className={cn(controlClass, segmentedFocus, "h-10 w-32")} />
-                  {s.closes <= s.opens && s.closes !== s.opens && <span className="text-xs text-muted">ends after midnight</span>}
+                  {complete(s) && s.closes < s.opens && <span className="text-xs text-muted">ends after midnight</span>}
                   <IconButton label={`Remove ${WEEKDAYS[weekday]} shift ${n + 1}`} size="sm" onClick={() => onChange(shifts.filter((_, j) => j !== i))}>
                     <Trash aria-hidden />
                   </IconButton>
@@ -153,9 +167,9 @@ function WeekEditor({ shifts, onChange }: { shifts: Shift[]; onChange: (s: Shift
           </div>
         );
       })}
-      {overlaps.length > 0 && (
+      {problems.length > 0 && (
         <p role="alert" className="pt-2 text-sm text-danger">
-          {overlaps[0]!.message} Fix it to save.
+          {problems[0]} Fix it to save.
         </p>
       )}
     </div>
@@ -166,7 +180,7 @@ export function HoursEditor({ hours }: { hours: Hours }) {
   const [store, setStore] = useState(hours.store);
   const [ordering, setOrdering] = useState(hours.ordering);
   const save = useAction();
-  const invalid = findOverlaps(store).length > 0 || findOverlaps(ordering).length > 0 || [...store, ...ordering].some((s) => !s.opens || !s.closes || s.opens === s.closes);
+  const invalid = weekProblems(store).length > 0 || weekProblems(ordering).length > 0;
   const dirty = JSON.stringify({ store, ordering }) !== JSON.stringify(hours);
   return (
     <Card className="flex flex-col gap-4">
@@ -256,10 +270,10 @@ export function SpecialDays({ specials }: { specials: (SpecialHours & { label: s
         <div className="flex flex-wrap items-end gap-3">
           {!closed && (
             <>
-              <FormField label="Opens">
+              <FormField label="Opens" error={add.fieldError("opens")}>
                 <Input type="time" value={opens} onChange={(e) => setOpens(e.target.value)} className="w-32" />
               </FormField>
-              <FormField label="Closes">
+              <FormField label="Closes" error={add.fieldError("closes")}>
                 <Input type="time" value={closes} onChange={(e) => setCloses(e.target.value)} className="w-32" />
               </FormField>
             </>

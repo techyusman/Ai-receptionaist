@@ -86,6 +86,19 @@ describe("the order lifecycle against Postgres", () => {
     assert.equal(detail.attempts[0].outcome, "CREATED");
   });
 
+  test("F07-N1/N2 staff can't cancel; the owner can, with a reason, and it's on the timeline", async () => {
+    const o = await placeOrder(await newDraft());
+    assert.equal((await h.call(sam, "POST", `/orders/${o.id}/cancel`, { reason: "Caller asked us to." })).status, 403);
+    const short = await h.call(maya, "POST", `/orders/${o.id}/cancel`, { reason: "x" });
+    assert.equal(short.status, 400);
+    assert.equal(short.body.error.field, "reason");
+    const done = await h.call(maya, "POST", `/orders/${o.id}/cancel`, { reason: "Caller asked us to." });
+    assert.equal(done.status, 200, JSON.stringify(done.body));
+    const detail = (await h.call(maya, "GET", `/orders/${o.id}`)).body;
+    assert.equal(detail.status, "CANCELLED");
+    assert.equal(detail.events.at(-1).reason, "Caller asked us to.");
+  });
+
   test("changing anything after read-back voids the confirmation and the old yes cannot be reused", async () => {
     const o = await newDraft();
     await tenant(async (tx) => {

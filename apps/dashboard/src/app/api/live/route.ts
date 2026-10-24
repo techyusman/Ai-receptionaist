@@ -1,3 +1,4 @@
+import { unstable_rethrow } from "next/navigation";
 import { readSession } from "@/server/auth";
 import { getAuth } from "@/server/session";
 
@@ -5,8 +6,19 @@ import { getAuth } from "@/server/session";
 // route opens the API's stream with the person's own token and passes it straight through, so the
 // browser never holds an API credential. Closing the tab closes the upstream stream too.
 
+// The browser gives up for good on any answer that isn't an event stream, so everything short of "signed
+// out" is answered with a stream that tells it to come back in a few seconds.
+const comeBackSoon = () => new Response("retry: 5000\n\n", { status: 200, headers: { "Content-Type": "text/event-stream; charset=utf-8" } });
+
 export async function GET(request: Request) {
-  const [session, auth] = await Promise.all([readSession(), getAuth()]);
+  let session: Awaited<ReturnType<typeof readSession>>;
+  let auth: Awaited<ReturnType<typeof getAuth>>;
+  try {
+    [session, auth] = await Promise.all([readSession(), getAuth()]);
+  } catch (e) {
+    unstable_rethrow(e);
+    return comeBackSoon();
+  }
   if (!session || !auth) return new Response("Sign in first.", { status: 401 });
   const base = process.env.API_BASE_URL?.replace(/\/$/, "");
   if (!base) return new Response("Live updates aren't configured.", { status: 503 });
@@ -21,9 +33,10 @@ export async function GET(request: Request) {
       cache: "no-store",
     });
   } catch {
-    return new Response("retry: 5000\n\n", { status: 200, headers: { "Content-Type": "text/event-stream; charset=utf-8" } });
+    return comeBackSoon();
   }
-  if (!res.ok || !res.body) return new Response("Live updates are unavailable.", { status: res.status === 401 ? 401 : 502 });
+  if (res.status === 401) return new Response("Sign in first.", { status: 401 });
+  if (!res.ok || !res.body) return comeBackSoon();
 
   return new Response(res.body, {
     headers: {

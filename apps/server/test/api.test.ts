@@ -89,3 +89,38 @@ describe("request bodies", () => {
     assert.equal(JSON.parse(broken.body).error.code, "VALIDATION");
   });
 });
+
+describe("BUG-003 a double-clicked sign-up", () => {
+  test("two simultaneous creates from the same new person never fail with a server error", async () => {
+    const newbie = newUser("Double Clicker");
+    const body = { name: "Café Ñandú 🥐", location: { name: "Main", timezone: "America/New_York", address: { line1: "1 St", city: "Queens", region: "NY", postalCode: "11101", country: "US" } } };
+    const [a, b] = await Promise.all([h.call(newbie, "POST", "/restaurants", body), h.call(newbie, "POST", "/restaurants", body)]);
+    assert.ok([a.status, b.status].every((s) => s < 500), `got ${a.status} ${JSON.stringify(a.body)} and ${b.status} ${JSON.stringify(b.body)}`);
+  });
+});
+
+describe("rate limits are per person", () => {
+  test("one person using up a limit doesn't lock out everyone else coming through the same server", async () => {
+    // Every dashboard request reaches the API from the dashboard server's address, so a limit keyed by
+    // address would be shared by every restaurant at once.
+    const busy = newUser("Busy Person");
+    const other = newUser("Someone Else");
+    const accept = (u: TestUser) => h.call(u, "POST", "/invitations/accept", { token: "x".repeat(43) });
+    for (let i = 0; i < 10; i++) assert.notEqual((await accept(busy)).status, 429);
+    assert.equal((await accept(busy)).status, 429);
+    assert.notEqual((await accept(other)).status, 429);
+  });
+
+  test("BUG-005 a shared kitchen login on four screens through a rush isn't throttled", async () => {
+    // Each dashboard page load is about 15 API calls, and every live event refreshes every open screen.
+    // Four screens refreshing on an event every few seconds is about 1,000 calls a minute.
+    const kitchen = newUser("Kitchen Screens");
+    await signUp(h, kitchen, "Rush Hour Cafe");
+    let throttled = 0;
+    for (let batch = 0; batch < 50; batch++) {
+      const replies = await Promise.all(Array.from({ length: 20 }, () => h.call(kitchen, "GET", "/me")));
+      throttled += replies.filter((r) => r.status === 429).length;
+    }
+    assert.equal(throttled, 0);
+  });
+});

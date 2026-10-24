@@ -1,4 +1,5 @@
 // In-memory stand-ins used by tests and by the local dev stack. They record what they were asked to do.
+import { randomUUID } from "node:crypto";
 import twilio from "twilio";
 import type { EmailMessage, EmailSender } from "./email.ts";
 import type { RealtimeConnector, RealtimeSession } from "./realtime.ts";
@@ -29,7 +30,8 @@ export class FakeTwilio implements TwilioApi {
     return this.inventory(areaCode);
   }
   async buyNumber(e164: string, hooks: NumberHooks) {
-    const sid = `PN${String(this.bought.length + 1).padStart(32, "0")}`;
+    // Unique like Twilio's own, so it can't collide with numbers already in the database (the seed's).
+    const sid = `PN${randomUUID().replace(/-/g, "")}`;
     this.bought.push({ sid, e164, hooks });
     return { sid, e164 };
   }

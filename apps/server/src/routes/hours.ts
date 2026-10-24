@@ -4,7 +4,7 @@ import { findOverlaps, isOpenAt, localClock, type Shift } from "@receptionist/do
 import type { FastifyInstance } from "fastify";
 import { audit } from "../audit.ts";
 import type { Deps } from "../deps.ts";
-import { notFound, rule } from "../errors.ts";
+import { conflict, notFound, rule } from "../errors.ts";
 import { idParam, lidParam, meta, parse, who } from "../http.ts";
 import { signal } from "../live.ts";
 import { hm, tenant } from "./util.ts";
@@ -74,6 +74,13 @@ export function registerHoursRoutes(api: FastifyInstance, deps: Deps) {
     const a = await deps.access.forLocation(who(req), lid, "settings.edit");
     const input = parse(specialHoursInput, req.body);
     return tenant(deps, a, async (tx) => {
+      // A day is either closed or has hours. Both at once would list hours on screen while callers
+      // are told "closed" (a closure wins), so the second one is refused, not stored.
+      await tx.query("select 1 from locations where id = $1 for update", [lid]);
+      const sameDay = await many<{ closed: boolean }>(tx, "select closed from special_hours where location_id = $1 and on_date = $2", [lid, input.date]);
+      if (!input.closed && sameDay.some((d) => d.closed)) throw conflict("That day is marked closed. Remove the closure first to add hours.", "date");
+      if (input.closed && sameDay.some((d) => d.closed)) throw conflict("That day is already marked closed.", "date");
+      if (input.closed && sameDay.some((d) => !d.closed)) throw conflict("That day already has special hours. Remove them first to mark it closed.", "date");
       await tx.query(
         `insert into special_hours (restaurant_id, location_id, on_date, closed, opens_at, closes_at, note, created_by)
          values ($1, $2, $3, $4, $5, $6, $7, $8)`,

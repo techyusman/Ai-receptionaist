@@ -18,6 +18,9 @@ export async function migrate(pool: pg.Pool, dir: string = MIGRATIONS_DIR): Prom
   const client = await pool.connect();
   const result: MigrateResult = { applied: [], skipped: [] };
   try {
+    // Names, notes and FAQ answers carry accents and emoji; a database in another encoding rejects them at runtime.
+    const enc = (await client.query<{ server_encoding: string }>("show server_encoding")).rows[0]?.server_encoding;
+    if (enc !== "UTF8") throw new Error(`This database uses ${enc} text encoding; it must be UTF8. Create it with ENCODING 'UTF8'.`);
     await client.query("select pg_advisory_lock(727274)");
     await client.query(
       `create table if not exists schema_migrations (

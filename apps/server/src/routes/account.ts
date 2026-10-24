@@ -30,10 +30,12 @@ export function registerAccountRoutes(api: FastifyInstance, deps: Deps) {
     await withSystem(deps.db, async (tx) => {
       const teams = await many<{ restaurant_id: string }>(tx, "select distinct restaurant_id from memberships where user_id = $1", [id.userId]);
       await tx.query("delete from users where id = $1", [id.userId]);
+      await tx.query("insert into deleted_users (id) values ($1) on conflict do nothing", [id.userId]);
       for (const t of teams) {
         await auditSystem(tx, t.restaurant_id, { action: "members.account_deleted", targetType: "user", target: "Team member", summary: "A team member deleted their account." });
       }
     });
+    deps.access.forget(id.userId);
     return reply.status(204).send();
   });
 }

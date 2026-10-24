@@ -78,3 +78,9 @@ test("the recurring jobs are scheduled", async () => {
   const names = new Set(rows.rows.map((r: { name: string }) => r.name));
   for (const n of ["catalog.reconcile", "catalog.staleness", "square.refresh_tokens", "retention.purge", "usage.rollup"]) assert.ok(names.has(n), n);
 });
+
+test("BUG-001: a database error inside the queue is logged, not thrown as an uncaught 'error' event", async () => {
+  const listeners = queue.boss.listenerCount("error");
+  assert.ok(listeners > 0, "the queue must listen for its own error events, or a dropped connection crashes the process");
+  assert.doesNotThrow(() => queue.boss.emit("error", new Error("Connection terminated unexpectedly")));
+});

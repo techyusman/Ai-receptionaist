@@ -101,6 +101,12 @@ describe("roles", () => {
     assert.equal((await h.call(jordan, "GET", `/restaurants/${A.restaurantId}/audit-log`)).status, 403);
   });
 
+  test("F01-N2 only the owner buys phone numbers (they cost money)", async () => {
+    assert.equal((await h.call(jordan, "GET", `/locations/${A.locationId}/phone-numbers/available?areaCode=212`)).status, 403);
+    assert.equal((await h.call(jordan, "POST", `/locations/${A.locationId}/phone-numbers`, { e164: "+12125550199" })).status, 403);
+    assert.equal((await h.call(sam, "POST", `/locations/${A.locationId}/phone-numbers`, { e164: "+12125550199" })).status, 403);
+  });
+
   test("the owner can do all of it, and every change is in the audit log", async () => {
     assert.equal((await h.call(maya, "PATCH", `/locations/${A.locationId}/settings`, { recordingEnabled: true, retentionDays: 30 })).status, 200);
     const log = await h.call(maya, "GET", `/restaurants/${A.restaurantId}/audit-log`);

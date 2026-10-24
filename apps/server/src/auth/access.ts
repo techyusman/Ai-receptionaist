@@ -2,8 +2,8 @@
 // the URL (a location or a resource id), never from the body, and a person who isn't a member of
 // that restaurant gets "not found", so ids can't be probed.
 import { can, type Capability, type Role } from "@receptionist/contracts";
-import { many, maybeOne, one, withSystem, type Db } from "@receptionist/db";
-import { forbidden, notFound } from "../errors.ts";
+import { many, maybeOne, withSystem, type Db } from "@receptionist/db";
+import { forbidden, notFound, unauthenticated } from "../errors.ts";
 import type { Identity } from "./jwt.ts";
 
 export type Access = {
@@ -36,23 +36,42 @@ export type ResourceKind = keyof typeof RESOURCE_TABLES;
 
 const ROLE_RANK: Record<Role, number> = { OWNER: 4, MANAGER: 3, STAFF: 2, SUPPORT_LIMITED: 1 };
 
+const SEEN_FOR_MS = 60_000;
+
 export class AccessService {
   readonly #db: Db;
+  /** People whose user row was checked in the last minute, so most requests skip the write. */
+  readonly #seen = new Map<string, number>();
   constructor(db: Db) {
     this.#db = db;
   }
 
-  /** Creates the user row on first sight and keeps the email current. */
+  /**
+   * Creates the user row on first sight and keeps the email current. Refuses an account that was
+   * deleted: its tokens may still be valid, but the person is never created again from one.
+   */
   async ensureUser(id: Identity): Promise<void> {
-    await withSystem(this.#db, (tx) =>
-      tx.query(
+    const seen = this.#seen.get(id.userId);
+    if (seen && seen > Date.now() - SEEN_FOR_MS) return;
+    const deleted = await withSystem(this.#db, async (tx) => {
+      if (await maybeOne(tx, "select 1 as x from deleted_users where id = $1", [id.userId])) return true;
+      await tx.query(
         `insert into users (id, email, display_name) values ($1, $2, $3)
          on conflict (id) do update set email = excluded.email,
            display_name = coalesce(users.display_name, excluded.display_name)
          where users.email is distinct from excluded.email or users.display_name is null`,
         [id.userId, id.email, id.name],
-      ),
-    );
+      );
+      return false;
+    });
+    if (deleted) throw unauthenticated("This account was deleted.");
+    if (this.#seen.size > 5000) this.#seen.clear();
+    this.#seen.set(id.userId, Date.now());
+  }
+
+  /** After an account is deleted: check again on this person's next request. */
+  forget(userId: string) {
+    this.#seen.delete(userId);
   }
 
   async #role(restaurantId: string, locationId: string | null, userId: string): Promise<{ role: Role; actorType: "USER" | "SUPPORT" } | null> {
@@ -130,6 +149,9 @@ export class AccessService {
   }
 
   async userRow(userId: string) {
-    return withSystem(this.#db, (tx) => one<{ id: string; email: string; display_name: string | null }>(tx, "select id, email, display_name from users where id = $1", [userId]));
+    const row = await withSystem(this.#db, (tx) => maybeOne<{ id: string; email: string; display_name: string | null }>(tx, "select id, email, display_name from users where id = $1", [userId]));
+    // Gone between requests: deleted, possibly through another server that this one hasn't heard from.
+    if (!row) throw unauthenticated("This account was deleted.");
+    return row;
   }
 }

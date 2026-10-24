@@ -4,8 +4,7 @@ import { useState, useTransition } from "react";
 import { createRestaurant } from "@/app/actions/onboarding";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/display";
-import { controlClass, FormField, Input } from "@/components/ui/field";
-import { cn } from "@/lib/cn";
+import { FormField, Input, NativeSelect } from "@/components/ui/field";
 
 const US_ZONES = ["America/New_York", "America/Chicago", "America/Denver", "America/Phoenix", "America/Los_Angeles", "America/Anchorage", "Pacific/Honolulu"];
 
@@ -43,13 +42,13 @@ export function WelcomeForm() {
             <Input value={d.locationName} onChange={(e) => set("locationName", e.target.value)} maxLength={120} required />
           </FormField>
           <FormField label="Time zone" hint="Hours and order times use this zone." error={err("timezone")}>
-            <select value={d.timezone} onChange={(e) => set("timezone", e.target.value)} className={cn(controlClass, "h-10")}>
+            <NativeSelect value={d.timezone} onChange={(e) => set("timezone", e.target.value)}>
               {US_ZONES.map((z) => (
                 <option key={z} value={z}>
                   {z.replaceAll("_", " ")}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </FormField>
         </div>
         <FormField label="Street address" error={err("line1")} required>

@@ -26,6 +26,11 @@ export class AuthStub {
   readonly #keys: AuthStubKeys;
   readonly #refresh = new Map<string, string>();
   readonly #names = new Map<string, string>();
+  /** Like Supabase, an email that signs up again after its account was deleted gets a new user id. */
+  readonly #generation = new Map<string, number>();
+  readonly #emailOf = new Map<string, string>();
+  /** Emails and texts the dev stack "sent", readable at /dev/mail so tests can follow links like a person. */
+  readonly mailbox: { to: string; subject: string; text: string; at: string }[] = [];
 
   constructor(keys: AuthStubKeys, names: Record<string, string> = {}) {
     this.#keys = keys;
@@ -48,7 +53,9 @@ export class AuthStub {
 
   async #session(email: string) {
     const key = await importJWK(this.#keys.privateJwk, "ES256");
-    const id = devUserId(email);
+    const gen = this.#generation.get(email);
+    const id = gen ? devUserId(`${email}#${gen}`) : devUserId(email);
+    this.#emailOf.set(id, email);
     const name = this.#names.get(email) ?? null;
     const exp = Math.floor(Date.now() / 1000) + 3600;
     const access = await new SignJWT({ email, role: "authenticated", user_metadata: name ? { name } : {} })
@@ -66,6 +73,10 @@ export class AuthStub {
     const body = chunks.length ? (JSON.parse(Buffer.concat(chunks).toString("utf8")) as Record<string, string>) : {};
     const p = url.pathname;
     if (p === "/auth/v1/.well-known/jwks.json") return this.#send(res, 200, { keys: [this.#keys.publicJwk] });
+    if (p === "/dev/mail" && req.method === "GET") {
+      const to = url.searchParams.get("to")?.toLowerCase();
+      return this.#send(res, 200, this.mailbox.filter((m) => !to || m.to.toLowerCase() === to));
+    }
     if (p === "/auth/v1/otp" && req.method === "POST") {
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email ?? "")) return this.#send(res, 400, { msg: "Invalid email" });
       console.log(`[auth] sign-in code for ${body.email}: ${DEV_CODE}`);
@@ -82,7 +93,11 @@ export class AuthStub {
       return this.#send(res, 200, await this.#session(email));
     }
     if (p === "/auth/v1/logout") return this.#send(res, 204, null);
-    if (p.startsWith("/auth/v1/admin/users/") && req.method === "DELETE") return this.#send(res, 200, {});
+    if (p.startsWith("/auth/v1/admin/users/") && req.method === "DELETE") {
+      const email = this.#emailOf.get(p.slice("/auth/v1/admin/users/".length));
+      if (email) this.#generation.set(email, (this.#generation.get(email) ?? 0) + 1);
+      return this.#send(res, 200, {});
+    }
     this.#send(res, 404, { msg: "not found" });
   }
 }
