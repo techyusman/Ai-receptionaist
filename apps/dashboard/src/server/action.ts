@@ -4,7 +4,7 @@ import { refresh } from "next/cache";
 import { unstable_rethrow } from "next/navigation";
 import { z } from "zod";
 import { Forbidden } from "./auth";
-import { InputError } from "./api";
+import { InputError, UnavailableError } from "./api";
 
 import type { ActionResult } from "@/data/types";
 
@@ -27,6 +27,7 @@ export async function run<T>(fn: () => Promise<T>): Promise<ActionResult<T>> {
       return { ok: false, message: issue?.message ?? "Check the form and try again.", field: issue?.path[0]?.toString() };
     }
     if (e instanceof InputError) return { ok: false, message: e.message, field: e.field };
+    if (e instanceof UnavailableError) return { ok: false, message: e.message };
     if (e instanceof Forbidden) return { ok: false, message: "Your role can't do that. Ask an owner." };
     if (e instanceof OrderRuleError) return { ok: false, message: e.message };
     console.error(e);

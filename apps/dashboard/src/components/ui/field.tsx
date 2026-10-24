@@ -84,6 +84,11 @@ export function Input({
   );
 }
 
+/** A plain <select> wired to its FormField label like Input is (a bare select has no accessible name). */
+export function NativeSelect({ className, ...props }: React.ComponentProps<"select">) {
+  return <select {...useFieldProps()} className={cn(controlClass, "h-10", className)} {...props} />;
+}
+
 export function Textarea({
   className,
   maxLength,

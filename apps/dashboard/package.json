@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@receptionist/contracts": "^0.0.0",
     "@receptionist/domain": "^0.0.0",
     "clsx": "^2.1.1",
     "lucide-react": "^1.60.0",

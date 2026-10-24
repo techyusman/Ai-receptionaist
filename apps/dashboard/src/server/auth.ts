@@ -1,50 +1,46 @@
 import "server-only";
 import { redirect } from "next/navigation";
-import type { Session } from "@/data/types";
+import { cache } from "react";
+import type { Role, Session } from "@/data/types";
 import { can, type Capability } from "@/lib/permissions";
-import { store } from "./fake/store";
-import { getChosenLocationId, getSessionUserId } from "./session";
+import { ForbiddenError, get } from "./http/client";
+import { getAuth, getChosenLocationId } from "./session";
 
-export class Forbidden extends Error {
-  constructor(capability: Capability) {
-    super(`Your role can't do this (${capability}).`);
-    this.name = "Forbidden";
-  }
-}
+export { ForbiddenError as Forbidden };
+
+export type Me = {
+  user: { id: string; email: string; name: string };
+  memberships: { restaurant: { id: string; name: string; slug: string }; role: Role; locations: { id: string; name: string }[] }[];
+  pendingInvites: { id: string; restaurantName: string; role: string; expiresAt: string }[];
+};
+
+/** Who is signed in, asked of the API once per request. */
+export const getMe = cache(async (): Promise<Me | null> => {
+  if (!(await getAuth())) return null;
+  return get<Me>("/me");
+});
 
 /** The signed-in person, their role and the location they're working in, or null. */
 export async function readSession(): Promise<Session | null> {
-  const userId = await getSessionUserId();
-  if (!userId) return null;
-  const { state } = store();
-  const user = state.users.find((u) => u.id === userId);
-  const membership = state.memberships.find((m) => m.userId === userId && m.status === "ACTIVE");
-  if (!user || !membership) return null;
-  const allowed = state.locations.filter(
-    (l) => l.restaurantId === membership.restaurantId && (membership.locationId === null || membership.locationId === l.id),
-  );
+  const me = await getMe();
+  if (!me || me.memberships.length === 0) return null;
   const chosen = await getChosenLocationId();
-  const location = allowed.find((l) => l.id === chosen) ?? allowed[0];
+  const membership = me.memberships.find((m) => m.locations.some((l) => l.id === chosen)) ?? me.memberships[0]!;
+  const location = membership.locations.find((l) => l.id === chosen) ?? membership.locations[0];
   if (!location) return null;
-  return {
-    user: { id: user.id, email: user.email, name: user.name },
-    role: membership.role,
-    restaurant: state.restaurant,
-    location: { id: location.id, name: location.name },
-    locations: allowed.map((l) => ({ id: l.id, name: l.name })),
-  };
+  return { user: me.user, role: membership.role, restaurant: membership.restaurant, location, locations: membership.locations };
 }
 
-/** Sends the person to sign in if there's no valid session. */
+/** Sends the person to sign in, or to set up a restaurant if they have none yet. */
 export async function requireSession(): Promise<Session> {
   const session = await readSession();
-  if (!session) redirect("/login");
-  return session;
+  if (session) return session;
+  redirect((await getAuth()) ? "/welcome" : "/login");
 }
 
 /** For server actions and data reads: throws Forbidden instead of rendering a page. */
 export async function requireCan(capability: Capability): Promise<Session> {
   const session = await requireSession();
-  if (!can(session.role, capability)) throw new Forbidden(capability);
+  if (!can(session.role, capability)) throw new ForbiddenError();
   return session;
 }

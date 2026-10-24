@@ -128,7 +128,8 @@ export function TicketCard({
       className={cn(
         "flex flex-col gap-3 rounded-lg border bg-surface p-4",
         state === "new" && "border-accent",
-        state === "accepted" && "border-border opacity-80",
+        // Settled tickets recede with a quieter surface, not transparency, which would fade text below AA.
+        state === "accepted" && "border-border bg-surface-muted",
         state === "check-needed" && "border-warning",
         test && "border-dashed",
       )}

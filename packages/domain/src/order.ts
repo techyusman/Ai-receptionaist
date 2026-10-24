@@ -1,4 +1,4 @@
-// The order state machine (spec §9). Mirrors the database triggers in replica/schema.sql, so the
+// The order state machine (spec §9). Mirrors the database triggers in packages/db/migrations/0001_init.sql, so the
 // rules hold even if a caller skips this module. Pure: every function returns a new order.
 
 export const ORDER_STATUSES = [
@@ -367,7 +367,8 @@ export function rotateIdempotencyKey(order: Order, key: string): Order {
   return { ...order, idempotencyKey: key };
 }
 
-export function accept(order: Order, staffUserId: string, ctx: Ctx): Result {
+/** staffUserId is null when the restaurant's system acknowledged the order (a Square webhook), not a person on the dashboard. */
+export function accept(order: Order, staffUserId: string | null, ctx: Ctx): Result {
   return move(order, "RECEIVED_BY_RESTAURANT", ctx, { receivedAt: ctx.at, receivedBy: staffUserId });
 }
 

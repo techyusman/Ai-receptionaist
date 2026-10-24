@@ -1,0 +1,99 @@
+import { randomUUID } from "node:crypto";
+import cors from "@fastify/cors";
+import formbody from "@fastify/formbody";
+import rateLimit from "@fastify/rate-limit";
+import websocket from "@fastify/websocket";
+import Fastify, { type FastifyInstance } from "fastify";
+import { bearerToken } from "./http.ts";
+import type { Deps } from "./deps.ts";
+import { lifecycle } from "./lifecycle.ts";
+import { toProblem } from "./problems.ts";
+import { registerPublicRoutes } from "./routes/public.ts";
+import { registerRoutes } from "./routes/index.ts";
+
+export async function buildApp(deps: Deps): Promise<FastifyInstance> {
+  const { config } = deps;
+  const app = Fastify({
+    logger: {
+      level: config.LOG_LEVEL,
+      // Phone numbers, names and tokens never reach the logs: no query strings, no auth headers.
+      redact: { paths: ["req.headers.authorization", "req.headers.cookie", "req.headers['x-twilio-signature']"], censor: "[redacted]" },
+      serializers: {
+        req: (req) => ({ method: req.method, url: String(req.url).split("?")[0], id: req.id }),
+      },
+    },
+    genReqId: (req) => (typeof req.headers["x-request-id"] === "string" && /^[\w-]{8,64}$/.test(req.headers["x-request-id"]) ? req.headers["x-request-id"] : randomUUID()),
+    trustProxy: config.NODE_ENV === "production",
+    bodyLimit: 256 * 1024,
+    routerOptions: { maxParamLength: 200 },
+  });
+
+  await app.register(cors, {
+    origin: config.DASHBOARD_ORIGIN,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["authorization", "content-type", "x-request-id"],
+    maxAge: 600,
+  });
+  await app.register(formbody);
+  // An action like "submit" often has nothing to send; an empty JSON body means {} rather than an error.
+  app.removeContentTypeParser("application/json");
+  app.addContentTypeParser("application/json", { parseAs: "string" }, (_req, body, done) => {
+    const text = typeof body === "string" ? body.trim() : "";
+    if (text === "") return done(null, {});
+    try {
+      done(null, JSON.parse(text));
+    } catch {
+      done(Object.assign(new Error("That request couldn't be read."), { statusCode: 400 }), undefined);
+    }
+  });
+  await app.register(websocket, { options: { maxPayload: 1024 * 1024 } });
+  await app.register(rateLimit, {
+    global: true,
+    max: 3000,
+    timeWindow: "1 minute",
+    // Per signed-in person. A dashboard page load is about 15 calls and every live event refreshes every
+    // open screen, so a kitchen login shared by four screens in a rush makes ~1,000 a minute. A script
+    // hammering the API still hits this.
+    keyGenerator: (req) => req.identity?.userId ?? req.ip,
+  });
+
+  app.addHook("onSend", async (_req, reply, payload) => {
+    reply.header("x-content-type-options", "nosniff");
+    if (!reply.hasHeader("cache-control")) reply.header("cache-control", "no-store");
+    return payload;
+  });
+
+  app.setErrorHandler((error, req, reply) => {
+    const problem = toProblem(error);
+    if (problem.status >= 500) req.log.error({ err: error }, "request failed");
+    else req.log.info({ code: problem.body.error.code, status: problem.status }, "request rejected");
+    return reply.status(problem.status).send(problem.body);
+  });
+  app.setNotFoundHandler((_req, reply) => reply.status(404).send({ error: { code: "NOT_FOUND", message: "Not found." } }));
+
+  app.get("/healthz", { config: { rateLimit: false } }, async (_req, reply) => {
+    if (lifecycle.draining) return reply.status(503).send({ ok: false, draining: true });
+    try {
+      await deps.db.query("select 1");
+      return { ok: true };
+    } catch {
+      return reply.status(503).send({ ok: false });
+    }
+  });
+
+  registerPublicRoutes(app, deps);
+
+  // Everything under /api/v1 needs a valid Supabase token. The user row is created on first sight.
+  await app.register(
+    async (api) => {
+      api.addHook("onRequest", async (req) => {
+        req.identity = await deps.verify(bearerToken(req));
+        await deps.access.ensureUser(req.identity);
+      });
+      await registerRoutes(api, deps);
+    },
+    { prefix: "/api/v1" },
+  );
+
+  return app;
+}

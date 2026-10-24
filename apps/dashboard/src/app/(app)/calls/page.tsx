@@ -43,7 +43,7 @@ async function CallsContent({ searchParams }: { searchParams: PageProps<"/calls"
   const range: Range = ranges.some((r) => r.id === str(sp.range)) ? (str(sp.range) as Range) : "7d";
   const outcome = outcomes.includes(str(sp.outcome) as CallOutcome) ? (str(sp.outcome) as CallOutcome) : undefined;
   const transferred = str(sp.transferred) === "1";
-  const q = str(sp.q)?.slice(0, 100);
+  const q = str(sp.q)?.slice(0, 80); // the API searches on at most 80 characters
   const cursor = str(sp.cursor) ?? null;
   const callId = str(sp.call);
   const current = { range, outcome, transferred: transferred ? "1" : undefined, q, cursor: cursor ?? undefined };
@@ -77,7 +77,7 @@ async function CallsContent({ searchParams }: { searchParams: PageProps<"/calls"
           </label>
           <label className="flex flex-col gap-1 text-sm font-semibold text-fg">
             Search
-            <input name="q" defaultValue={q} placeholder="Name, number or words" className={cn(controlClass, "h-10 w-52")} />
+            <input name="q" defaultValue={q} maxLength={80} placeholder="Name, number or words" className={cn(controlClass, "h-10 w-52")} />
           </label>
           <label className="flex h-10 items-center gap-2 text-sm text-fg">
             <input type="checkbox" name="transferred" value="1" defaultChecked={transferred} className="size-4 accent-accent" />

@@ -8,7 +8,7 @@ import { FormField, Input } from "@/components/ui/field";
 
 const RESEND_SECONDS = 30;
 
-export function LoginForm({ sampleData }: { sampleData: boolean }) {
+export function LoginForm({ sampleData, next }: { sampleData: boolean; next?: string }) {
   const [step, setStep] = useState<"email" | "code">("email");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -35,7 +35,7 @@ export function LoginForm({ sampleData }: { sampleData: boolean }) {
   const verify = () =>
     start(async () => {
       setError(null);
-      const r = await verifyCode({ email, code });
+      const r = await verifyCode({ email, code, next });
       if (r && !r.ok) setError({ field: r.field, message: r.message });
     });
 
@@ -66,7 +66,7 @@ export function LoginForm({ sampleData }: { sampleData: boolean }) {
             }}
           >
             <p className="text-sm text-fg">
-              If <strong className="font-semibold">{email}</strong> is on a team, a code is on its way. It works for 10 minutes.
+              A code is on its way to <strong className="font-semibold">{email}</strong>. It works for 10 minutes.
             </p>
             <FormField label="6-digit code" error={error ? error.message : undefined}>
               <Input
@@ -96,10 +96,10 @@ export function LoginForm({ sampleData }: { sampleData: boolean }) {
       </Card>
       {sampleData && (
         <aside className="rounded-md border border-dashed border-border p-4 text-xs text-muted">
-          <p className="font-semibold text-fg">Sample data mode</p>
+          <p className="font-semibold text-fg">Local development</p>
           <p>
-            No email is sent. Use code <span className="font-mono text-fg">246810</span> with owner@thirdspace.test (owner),
-            jordan@thirdspace.test (manager) or sam@thirdspace.test (staff).
+            No email is sent. Use code <span className="font-mono text-fg">246810</span> with maya@thirdspace.test (owner),
+            jordan@thirdspace.test (manager) or sam@thirdspace.test (staff). Any other address signs up a new restaurant.
           </p>
         </aside>
       )}

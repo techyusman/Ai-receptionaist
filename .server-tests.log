@@ -1,0 +1,243 @@
+✔ an owner is asked to hand over the restaurant before deleting their account (8193.0333ms)
+✔ a team member's deletion removes the sign-in, the user and the membership, and leaves a note (190.3082ms)
+▶ authentication
+  ✔ no token, a bad token and a wrong-audience token are all 401 (10.032ms)
+  ✔ an unsigned (alg none) token is refused (1.4391ms)
+  ✔ healthz is public and reports the database (3.2052ms)
+  ✔ responses are never cached and never sniffed (1.6385ms)
+✔ authentication (8024.433ms)
+▶ sign-up and /me
+  ✔ the creator becomes the owner of a restaurant with one location and default settings (218.3842ms)
+  ✔ a second restaurant with the same name gets its own slug (20.9258ms)
+  ✔ invalid input is a 400 with the field named (7.1323ms)
+✔ sign-up and /me (246.9448ms)
+▶ request bodies
+  ✔ an action with an empty JSON body is read as {}, and broken JSON is a 400 (24.9978ms)
+✔ request bodies (25.3555ms)
+▶ catalog sync
+  ✔ loads items, variations, modifier lists and nested lists from Square-shaped objects (139.511ms)
+  ✔ running the same sync again changes nothing (80.049ms)
+  ✔ the read model matches the domain Menu and validates a real order selection (22.8379ms)
+  ✔ the restaurant's own overlay survives a re-sync (118.6199ms)
+  ✔ a full sync removes what Square no longer returns; an incremental sync applies explicit deletions (224.1346ms)
+  ✔ an item that only exists at another Square location is ignored (241.8414ms)
+✔ catalog sync (7889.9841ms)
+▶ aliases
+  ✔ a spoken name can be added, clashes are refused, and it can be removed (121.0146ms)
+✔ aliases (121.6828ms)
+▶ the Square question
+  ✔ ordering cannot be switched on before the feasibility is proven or approved (19.9636ms)
+  ✔ with written approval recorded, live orders turn on and the sign-off is stamped (20.2928ms)
+  ✔ even a direct database write cannot get around the gate (94.8153ms)
+✔ the Square question (7722.0062ms)
+▶ settings
+  ✔ a patch changes only what it names, and bad values are refused with a reason (39.659ms)
+✔ settings (39.9534ms)
+▶ hours
+  ✔ a week saves atomically and an overlapping shift saves nothing (30.4612ms)
+  ✔ special hours: a closure, a duplicate closure, and open-now computed in the restaurant's zone (57.6803ms)
+✔ hours (88.6321ms)
+▶ knowledge
+  ✔ add, edit in place, and refuse a duplicate question (44.6315ms)
+  ✔ starter questions arrive as inactive drafts that cannot be saved until the brackets are replaced (47.3959ms)
+  ✔ an answer with an end date is stored as an instant (11.2156ms)
+✔ knowledge (103.9415ms)
+▶ after a call
+  ✔ a confirmed order that never got sent is sent, and the call is summarised and given an expiry (266.8202ms)
+  ✔ an unfinished draft is abandoned, and a plain hang-up reads as one (14.7418ms)
+✔ after a call (7648.2761ms)
+▶ alerts reach people who are not watching the screen
+  ✔ warnings email the owner and managers; critical ones also text the staff numbers that asked (46.6641ms)
+  ✔ information-level alerts stay on the dashboard (7.3627ms)
+✔ alerts reach people who are not watching the screen (54.4697ms)
+▶ retention and privacy
+  ✔ expired call details are deleted, the call itself stays for the numbers, and the order keeps its items (173.0642ms)
+  ✔ the application role itself still cannot delete from the append-only tables (7.8334ms)
+  ✔ erasing a phone number removes the person from calls, callbacks and orders, and says what it did (255.8523ms)
+✔ retention and privacy (437.4397ms)
+▶ keeping Square healthy
+  ✔ a stale menu raises one alert and stops being stale once a sync lands (197.5566ms)
+  ✔ the safety-net job queues one catch-up sync per connected location (7.3048ms)
+  ✔ tokens close to expiry are renewed, and a refused renewal switches Square ordering off with an alert (84.4847ms)
+✔ keeping Square healthy (289.9933ms)
+▶ the order lifecycle against Postgres
+  ✔ a draft becomes a submitted ticket, then staff accept it, and every step is on the timeline (196.8123ms)
+  ✔ changing anything after read-back voids the confirmation and the old yes cannot be reused (50.2412ms)
+  ✔ a repeated tool call with a stale expected version changes nothing (24.9593ms)
+✔ the order lifecycle against Postgres (7371.2728ms)
+▶ integrity rules
+  ✔ submitted content is frozen, in the domain and in the database (76.2337ms)
+  ✔ nested choices keep their parent, and a quantity change updates the line (35.1825ms)
+  ✔ a real order cannot carry an estimate, and a test order can never target Square (21.8918ms)
+✔ integrity rules (133.8285ms)
+✔ Twilio: number search, purchase with our webhook URLs, redirecting a live call, and texting (87.6083ms)
+✔ Twilio: the browser test-call token is a JWT scoped to outgoing calls only, and signatures verify (4.3827ms)
+✔ OpenAI: connects with the project's key and the pinned model, passes events both ways, and reports a close (253.1436ms)
+✔ OpenAI: an unreachable or refused connection rejects instead of hanging (7.3314ms)
+✔ a job queued inside a transaction runs after it commits, and never if it rolls back (12472.1041ms)
+✔ the application role (not the owner) can queue jobs from a tenant transaction (1458.7583ms)
+✔ a job with a singleton key is queued once however often it is asked for (5519.9715ms)
+✔ a delayed job waits (4566.1261ms)
+✔ the recurring jobs are scheduled (200.7919ms)
+▶ connecting Square
+  ✔ the authorize link asks for the fewest scopes and carries a one-time state (159.465ms)
+  ✔ approving sends the owner back to the dashboard, with tokens stored encrypted (96.5706ms)
+  ✔ a state works once, and an unknown or denied one goes nowhere useful (142.7768ms)
+  ✔ someone outside the restaurant cannot start a connection (22.7591ms)
+✔ connecting Square (9236.1891ms)
+▶ choosing a location and syncing the menu
+  ✔ picking a Square location starts a full sync that fills the menu (594.9312ms)
+  ✔ a second restaurant cannot claim the same Square location (86.693ms)
+  ✔ an incremental sync applies only what changed since the last one (106.0347ms)
+  ✔ every Square call carries the pinned API version and the owner's own token (1.5823ms)
+✔ choosing a location and syncing the menu (791.0881ms)
+▶ pricing
+  ✔ totals come from Square CalculateOrder, using catalog ids only (149.0044ms)
+  ✔ a real order with no Square cannot be priced, and a test order gets a labelled estimate (82.4973ms)
+✔ pricing (13779.0323ms)
+▶ submitting to Square
+  ✔ a confirmed order is created once, referencing our order id, under its own idempotency key (257.5097ms)
+  ✔ a repeated tool call does not send the order twice (167.7057ms)
+✔ submitting to Square (426.1841ms)
+▶ when Square does not answer
+  ✔ a timeout after the order WAS created is held as unknown, then resolved without a duplicate (348.5553ms)
+  ✔ a server error before anything was created is retried and creates exactly one order (319.2508ms)
+  ✔ when every retry fails the order is looked up by reference id before it is ever called lost (807.3406ms)
+  ✔ an order Square truly never got is marked failed and staff are told to call the customer (431.9924ms)
+✔ when Square does not answer (1908.6463ms)
+▶ when Square says no
+  ✔ a validation error sends the order back to be fixed, with a fresh key and nothing created (158.3655ms)
+  ✔ an authorization failure fails the order, flags the connection, and turns Square ordering off (179.4895ms)
+✔ when Square says no (338.3472ms)
+▶ checking a stuck order again by hand
+  ✔ a manager can ask for an unclear order to be checked; a settled one is refused (376.2581ms)
+✔ checking a stuck order again by hand (376.6997ms)
+▶ a second restaurant sees nothing of the first
+  ✔ every location-scoped read answers 404 for an outsider (206.844ms)
+  ✔ writes are refused the same way (66.1396ms)
+  ✔ a resource id from another tenant is just not found (88.7531ms)
+  ✔ row level security blocks even a query that forgets its WHERE clause (9.3386ms)
+✔ a second restaurant sees nothing of the first (8950.6758ms)
+▶ roles
+  ✔ staff can read and work the queue but cannot change configuration (60.9626ms)
+  ✔ a manager edits settings but not ordering mode, privacy, members or the audit log (73.571ms)
+  ✔ the owner can do all of it, and every change is in the audit log (28.1442ms)
+✔ roles (163.7221ms)
+▶ the dashboard test call
+  ✔ walks an order from search to a ticket on the Live orders board, flagged as a test (599.1785ms)
+  ✔ staff cannot run test calls, and one location's test order isn't reachable from another (55.6722ms)
+  ✔ hanging up part-way abandons the draft and ends the call with an outcome (76.3557ms)
+✔ the dashboard test call (9363.0516ms)
+▶ pricing without Square
+  ✔ a real caller is never given an estimate: no Square means no total (83.0465ms)
+  ✔ a test call gets a labelled estimate using the location's rough tax rate (38.5733ms)
+✔ pricing without Square (10593.7668ms)
+▶ dashboard tickets
+  ✔ submitting puts a ticket on the live queue and alerts staff, and calls nothing external (150.8487ms)
+  ✔ a test order never raises a kitchen alert (157.4836ms)
+✔ dashboard tickets (309.0428ms)
+▶ what happens when an item runs out before the order is sent
+  ✔ the order goes back to the caller instead of being sent (117.264ms)
+  ✔ a stale menu blocks submission (103.6444ms)
+✔ what happens when an item runs out before the order is sent (221.8383ms)
+▶ was it seen?
+  ✔ an unacknowledged Square order becomes 'unverified' after five minutes; an acknowledged one is received (601.4961ms)
+✔ was it seen? (602.1802ms)
+▶ taking an order the way the model will
+  ✔ search, choose, name and number, price, read back, confirm, send (564.829ms)
+  ✔ an edit after the read-back means reading it back again; the old yes is refused (234.7824ms)
+✔ taking an order the way the model will (11135.2464ms)
+▶ a caller or a confused model cannot make the tools do the wrong thing
+  ✔ only handles issued on this call work; real ids and invented handles are refused (183.3362ms)
+  ✔ a claimed caller-ID confirmation for a different number is recorded as spoken (106.8934ms)
+(node:19076) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+  ✔ outside ordering hours a real caller cannot order, but a dashboard test call can (132.9122ms)
+  ✔ ordering switched off mid-call stops the next change (79.3073ms)
+✔ a caller or a confused model cannot make the tools do the wrong thing (503.4837ms)
+▶ answers and hand-offs
+  ✔ hours come from the restaurant's own settings, and an unknown question says so (73.8501ms)
+  ✔ a callback needs consent and a real number, and shows up for staff (58.4894ms)
+  ✔ a transfer picks the right number for the reason, skips ones already tried, and gives up politely (95.7082ms)
+✔ answers and hand-offs (228.8935ms)
+(node:20724) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+{"level":"error","msg":"voice degraded","callId":"3c92d1fd-d5e4-4ec5-8046-c80ff9b99f10","why":"model connection closed"}
+▶ when the voice path breaks, a person gets the call
+  ✔ the model dropping mid-call redirects the caller to the restaurant and alerts staff (258.5625ms)
+{"level":"error","msg":"voice degraded","callId":"5b791ceb-27ac-4b43-a424-5fc1dadfadf1","why":"model unavailable: model is down"}
+  ✔ the model being unreachable when the call starts does the same, before the caller hears silence (86.4027ms)
+✔ when the voice path breaks, a person gets the call (8989.9399ms)
+▶ limits
+  ✔ a caller who goes quiet is asked once, then the call is ended (785.0318ms)
+  ✔ a call that reaches its time limit is wound down and ended (431.7352ms)
+✔ limits (1218.0209ms)
+▶ a caller who said yes and then the line dropped
+  ✔ the confirmed order is still sent (560.3395ms)
+✔ a caller who said yes and then the line dropped (560.981ms)
+(node:19468) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+▶ opening the stream
+  ✔ a valid pass starts the model with the restaurant's rules, twelve tools and mu-law audio (133.9352ms)
+{"level":"warn","msg":"media stream refused","why":"pass reused"}
+{"level":"warn","msg":"media stream refused","why":"bad pass"}
+{"level":"warn","msg":"media stream refused","why":"bad pass"}
+  ✔ a pass works once, and a forged, expired or missing one never reaches the model (192.4069ms)
+{"level":"warn","msg":"media stream refused","why":"unknown call"}
+  ✔ a valid pass for another call's sid is refused (66.5244ms)
+✔ opening the stream (9155.0024ms)
+▶ audio and interruptions
+  ✔ caller audio goes to the model and the model's audio goes back, marked for playback tracking (106.8743ms)
+  ✔ when the caller talks over the AI, the audio is cleared and the model's turn is trimmed to what was heard (176.407ms)
+  ✔ speech with nothing playing doesn't send a stray clear or truncate (182.9368ms)
+✔ audio and interruptions (468.151ms)
+▶ tools during a call
+  ✔ a tool call is run on the server and its answer returned to the model, who then continues (311.8319ms)
+  ✔ two tool calls in one turn run in order and the model continues once, after both (266.5315ms)
+  ✔ a bad tool call gets an error result, never a crash (112.0004ms)
+✔ tools during a call (692.9289ms)
+▶ leaving the call
+  ✔ a transfer waits for the model to finish speaking, then redirects the call to the staff number (682.2269ms)
+  ✔ end_call hangs up after the goodbye (421.3339ms)
+✔ leaving the call (1106.073ms)
+▶ signature checks
+  ✔ a correctly signed delivery is stored and queued (15.5722ms)
+  ✔ a wrong key, a wrong URL, a missing header and a tampered body are all refused and leave no trace (19.0965ms)
+  ✔ a repeated event id is acknowledged but processed once (16.0096ms)
+✔ signature checks (9647.6872ms)
+▶ processing
+  ✔ a burst of catalog changes becomes a single debounced incremental sync (53.1004ms)
+  ✔ Square showing an order as reserved marks it received by the restaurant (391.4973ms)
+  ✔ an update for an order we never sent is ignored, and so is an unknown event type (27.6625ms)
+  ✔ revoking access at Square disconnects the restaurant, pauses Square ordering and raises an alert (83.3007ms)
+✔ processing (556.7097ms)
+▶ an incoming call
+  ✔ is matched to its restaurant by the dialled number and handed to the media stream with a one-time pass (64.7478ms)
+  ✔ Twilio retrying the same webhook does not create a second call (34.7857ms)
+  ✔ an unsigned, wrongly signed or wrong-URL request is refused and creates nothing (27.6617ms)
+  ✔ a number we don't know gets a polite message, not a call record (12.0813ms)
+✔ an incoming call (8563.2162ms)
+▶ ring staff first
+  ✔ rings the store line, then either ends (staff answered) or gives the call to the AI (83.4728ms)
+  ✔ a result for a different call's id is refused (23.8963ms)
+✔ ring staff first (108.188ms)
+▶ browser test calls
+  ✔ a Voice SDK test call is flagged as a test, and one minted for another location is refused (26.6932ms)
+✔ browser test calls (27.6202ms)
+▶ the call ending
+  ✔ a caller who just hung up is recorded as such, and the call is queued for its summary (53.834ms)
+  ✔ a call that never connected is a failure, and an order that may exist outranks everything (84.0023ms)
+✔ the call ending (138.6942ms)
+▶ transfers to a person
+  ✔ nobody picks up: the caller goes back to the AI, staff are alerted and, if asked, texted (133.8587ms)
+  ✔ a person answers: the call ends as transferred, and the draft order is handed to staff, not sent (94.1459ms)
+  ✔ the whisper tells the person who answers who is calling and what they ordered (54.6692ms)
+✔ transfers to a person (283.4062ms)
+ℹ tests 131
+ℹ suites 46
+ℹ pass 131
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 228634.7024
