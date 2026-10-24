@@ -70,6 +70,9 @@ const alreadyUp = await (async () => {
 })();
 if (!alreadyUp) {
   if (!existsSync(join(pgDir, "PG_VERSION"))) await pg.initialise();
+  // Nothing answered on the port, so a lock file left by a window that was closed (not Ctrl+C) is stale.
+  // On Windows its process id may already belong to something else, and Postgres would refuse to start.
+  rmSync(join(pgDir, "postmaster.pid"), { force: true });
   await pg.start();
 }
 const admin = createPool(dbUrl, { max: 4, applicationName: "dev-admin" });
