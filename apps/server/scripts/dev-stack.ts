@@ -4,6 +4,7 @@
 // the sample café. Emails and texts are printed here instead of being sent. Data persists in .dev-data/.
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { randomBytes } from "node:crypto";
+import { createServer as createNetServer } from "node:net";
 import { join } from "node:path";
 import EmbeddedPostgres from "embedded-postgres";
 import pgClient from "pg";
@@ -32,9 +33,30 @@ import { createSquareFactory } from "../src/providers/square-http.ts";
 
 // DEV_DATA_DIR lets the end-to-end tests run a separate copy; DEV_FRESH=1 starts it from the seed every time.
 const DATA = process.env.DEV_DATA_DIR ?? join(import.meta.dirname, "..", ".dev-data");
+const PORTS = { pg: Number(process.env.DEV_PG_PORT ?? 54329), auth: Number(process.env.DEV_AUTH_PORT ?? 54321), square: Number(process.env.DEV_SQUARE_PORT ?? 54330), api: Number(process.env.PORT ?? 4000) };
+
+// A second copy can't start beside a running one, and must never wipe the running one's data: check first.
+const busy = await (async () => {
+  for (const port of [PORTS.api, PORTS.auth, PORTS.square]) {
+    const free = await new Promise<boolean>((resolve) => {
+      const probe = createNetServer().once("error", () => resolve(false)).once("listening", () => probe.close(() => resolve(true)));
+      probe.listen(port, "127.0.0.1");
+    });
+    if (!free) return port;
+  }
+  return null;
+})();
+if (busy) {
+  console.error(`
+The backend is already running (port ${busy} is in use), probably in another terminal.
+  - To keep using it: nothing to do. The dashboard works with it.
+  - To restart it (to load new code or a new key): press Ctrl+C in that terminal, then run this again.
+`);
+  process.exit(1);
+}
+
 // `npm run dev:fresh` (or DEV_FRESH=1) starts again from the sample data.
 if (process.env.DEV_FRESH === "1" || process.argv.includes("--fresh")) rmSync(DATA, { recursive: true, force: true });
-const PORTS = { pg: Number(process.env.DEV_PG_PORT ?? 54329), auth: Number(process.env.DEV_AUTH_PORT ?? 54321), square: Number(process.env.DEV_SQUARE_PORT ?? 54330), api: Number(process.env.PORT ?? 4000) };
 const DASHBOARD = process.env.DASHBOARD_ORIGIN ?? "http://localhost:3000";
 const SQUARE_TOKENS = { access: "dev-square-access-token", refresh: "dev-square-refresh-token" };
 
