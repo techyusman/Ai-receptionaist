@@ -2,9 +2,9 @@ import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { maybeOne, withSystem } from "@receptionist/db";
 import { buildApp } from "../src/app.ts";
-import { redact } from "../src/chat/test-chat.ts";
+import { forModel, redact } from "../src/chat/test-chat.ts";
 import { ChatModelError, createChatModel, waitFrom, type ChatMessage, type ChatModel, type ChatReply } from "../src/providers/chat.ts";
-import type { SpeechToText } from "../src/providers/speech.ts";
+import type { SpeechToText, TextToSpeech } from "../src/providers/speech.ts";
 import { squareReady, type Ready } from "./fixtures.ts";
 import { newUser, signUp, startHarness, type Harness, type TestUser } from "./harness.ts";
 
@@ -46,10 +46,21 @@ class FakeEars implements SpeechToText {
   }
 }
 
+/** Speaks by returning the text as bytes; can be told to refuse like Groq before its terms are accepted. */
+class FakeVoice implements TextToSpeech {
+  readonly label = "Voice";
+  refuse = false;
+  async speak(text: string) {
+    if (this.refuse) throw new ChatModelError("auth", "The human-sounding voice needs a one-time OK from the Groq account owner: open https://console.groq.com/playground and accept the terms.");
+    return { audio: new TextEncoder().encode(`RIFF:${text}`), mimeType: "audio/wav" };
+  }
+}
+
 let h: Harness;
 let r: Ready;
 const model = new ScriptModel();
 const ears = new FakeEars();
+const voice = new FakeVoice();
 const maya = newUser("Maya Owner");
 const sam = newUser("Sam Staff");
 const jordan = newUser("Jordan Manager");
@@ -61,7 +72,7 @@ async function join(who: TestUser, role: "MANAGER" | "STAFF") {
 }
 
 before(async () => {
-  h = await startHarness({ square: true, chat: model, stt: ears });
+  h = await startHarness({ square: true, chat: model, stt: ears, tts: voice });
   r = await squareReady(h, maya, "Chat Cafe", "DASHBOARD_TICKET");
   await h.call(maya, "PATCH", `/locations/${r.lid}/settings`, { orderingEnabled: true, transcriptEnabled: true });
   await join(sam, "STAFF");
@@ -191,7 +202,7 @@ describe("the test chat", () => {
     await bare.close();
     assert.equal(res.statusCode, 503);
     assert.match(JSON.parse(res.body).error.message, /console\.groq\.com\/keys/);
-    assert.deepEqual(JSON.parse(status.body), { configured: false, model: null, voice: true });
+    assert.deepEqual(JSON.parse(status.body), { configured: false, model: null, voice: true, speech: "Voice" });
   });
 
   test("numbers are masked in what's kept", () => {
@@ -237,6 +248,24 @@ describe("calling the AI from the browser (voice test)", () => {
     assert.equal((await speak(res.body.chatId, 0)).statusCode, 400, "an empty recording is refused");
   });
 
+  test("the AI's voice: each piece of a reply comes back as audio; a voice that isn't allowed yet says how to fix it", async () => {
+    const res = await h.call(maya, "POST", `/locations/${r.lid}/test-chat`, { mode: "voice" });
+    const cid = res.body.chatId as string;
+    const say = (text: string) =>
+      h.app.inject({ method: "POST", url: `/api/v1/locations/${r.lid}/test-chat/${cid}/speech`, headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, payload: JSON.stringify({ text }) });
+    const token = await h.token(maya);
+    const ok = await say("Assalam-o-alaikum! What can I get you?");
+    assert.equal(ok.statusCode, 200, ok.body);
+    assert.equal(ok.headers["content-type"], "audio/wav");
+    assert.equal(ok.body, "RIFF:Assalam-o-alaikum! What can I get you?");
+    assert.equal((await say("x".repeat(201))).statusCode, 400, "Orpheus takes 200 characters at a time");
+    voice.refuse = true;
+    const refused = await say("Hello");
+    voice.refuse = false;
+    assert.equal(refused.statusCode, 503);
+    assert.match(JSON.parse(refused.body).error.message, /accept the terms/);
+  });
+
   test("without speech-to-text, a browser call explains how to add a free key", async () => {
     const bare = await buildApp({ ...h.deps, providers: { ...h.deps.providers, stt: null } });
     const auth = { authorization: `Bearer ${await h.token(maya)}`, "content-type": "application/json" };
@@ -246,6 +275,24 @@ describe("calling the AI from the browser (voice test)", () => {
     assert.equal(start.statusCode, 503);
     assert.match(JSON.parse(start.body).error.message, /console\.groq\.com\/keys/);
     assert.equal(JSON.parse(status.body).voice, false);
+  });
+});
+
+describe("keeping each request small and fast", () => {
+  test("old tool steps are dropped from what the model is sent; every line of the conversation stays", () => {
+    const tool = (id: string) => ({ role: "tool" as const, tool_call_id: id, content: '{"matches":["a big list"]}' });
+    const asked = (id: string) => ({ role: "assistant" as const, content: null, tool_calls: [{ id, type: "function" as const, function: { name: "search_menu", arguments: "{}" } }] });
+    const history: ChatMessage[] = [
+      { role: "system", content: "rules" }, { role: "assistant", content: "Hi!" },
+      { role: "user", content: "zinger?" }, asked("1"), tool("1"), { role: "assistant", content: "Yes, Rs 650." },
+      { role: "user", content: "a meal" }, asked("2"), tool("2"), { role: "assistant", content: "Which drink?" },
+      { role: "user", content: "Coke" }, asked("3"), tool("3"),
+    ];
+    const sent = forModel(history);
+    assert.equal(sent.filter((m) => m.role === "tool").length, 2, "the latest two turns keep their tool steps");
+    assert.ok(!sent.some((m) => m.role === "tool" && m.tool_call_id === "1"), "the oldest search result is dropped");
+    assert.deepEqual(sent.filter((m) => m.role === "user").map((m) => m.content), ["zinger?", "a meal", "Coke"]);
+    assert.ok(sent.some((m) => m.role === "assistant" && m.content === "Yes, Rs 650."), "what the AI said stays");
   });
 });
 
@@ -263,7 +310,7 @@ describe("the chat model client (OpenAI-compatible, Groq by default)", () => {
       },
     });
     assert.equal(m.label, "Groq · openai/gpt-oss-120b");
-    assert.deepEqual(await m.complete([{ role: "user", content: "hi" }], []), { content: "Hi!", toolCalls: [] });
+    assert.deepEqual(await m.complete([{ role: "user", content: "hi" }], []), { content: "Hi!", toolCalls: [], model: "openai/gpt-oss-120b" });
     assert.equal(sent.url, "https://api.groq.com/openai/v1/chat/completions");
     assert.equal(sent.auth, "Bearer gsk_test");
     assert.equal(sent.body.model, "openai/gpt-oss-120b");
@@ -273,8 +320,9 @@ describe("the chat model client (OpenAI-compatible, Groq by default)", () => {
   test("a rate limit is waited out when it's short, and explained when it isn't", async () => {
     const slept: number[] = [];
     let calls = 0;
+    let clock = 0;
     const m = createChatModel({
-      baseUrl: "https://api.groq.com/openai/v1", apiKey: "k", model: "llama-3.3-70b-versatile", sleep: async (ms) => void slept.push(ms),
+      baseUrl: "https://api.groq.com/openai/v1", apiKey: "k", model: "llama-3.3-70b-versatile", now: () => clock, sleep: async (ms) => void (slept.push(ms), (clock += ms)),
       fetch: async () => (++calls === 1 ? new Response("{}", { status: 429, headers: { "retry-after": "2" } }) : ok(reply)),
     });
     assert.equal((await m.complete([], [])).content, "Hi!");
@@ -282,6 +330,34 @@ describe("the chat model client (OpenAI-compatible, Groq by default)", () => {
 
     const always = createChatModel({ baseUrl: "https://api.x.ai/v1", apiKey: "k", model: "grok", maxWaitMs: 5000, sleep: async () => {}, fetch: async () => new Response("{}", { status: 429, headers: { "x-ratelimit-reset-tokens": "1m2s" } }) });
     await assert.rejects(always.complete([], []), (e: unknown) => e instanceof ChatModelError && e.problem === "rate_limited");
+  });
+
+  test("a busy model hands over to the next one at once; it only waits when every model is busy", async () => {
+    const tried: string[] = [];
+    const slept: number[] = [];
+    let clock = 0;
+    const busy = new Set(["openai/gpt-oss-120b"]);
+    const m = createChatModel({
+      baseUrl: "https://api.groq.com/openai/v1", apiKey: "k", model: "openai/gpt-oss-120b", fallbacks: ["qwen/qwen3.8-27b", "openai/gpt-oss-20b"],
+      now: () => clock, sleep: async (ms) => void (slept.push(ms), (clock += ms)),
+      fetch: async (_url, init) => {
+        const body = JSON.parse(String(init!.body));
+        tried.push(body.model);
+        if (busy.has(body.model)) return new Response("{}", { status: 429, headers: { "retry-after": "20" } });
+        return ok({ choices: [{ message: { content: `from ${body.model}`, tool_calls: [] } }] });
+      },
+    });
+    const first = await m.complete([], []);
+    assert.equal(first.content, "from qwen/qwen3.8-27b");
+    assert.deepEqual(slept, [], "no waiting while another model has room");
+    assert.equal((await m.complete([], [])).model, "qwen/qwen3.8-27b", "the busy model is skipped until its limit resets");
+    assert.deepEqual(tried, ["openai/gpt-oss-120b", "qwen/qwen3.8-27b", "qwen/qwen3.8-27b"]);
+    busy.add("qwen/qwen3.8-27b");
+    busy.add("openai/gpt-oss-20b");
+    tried.length = 0;
+    clock += 21_000; // the first model's limit has reset, but now every model is busy
+    await assert.rejects(m.complete([], []), (e: unknown) => e instanceof ChatModelError && e.problem === "rate_limited");
+    assert.ok(slept.length > 0, "with every model busy it waits, then gives up within its budget");
   });
 
   test("a refused key and a malformed tool call", async () => {

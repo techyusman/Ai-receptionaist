@@ -146,16 +146,28 @@ Groq's free tier:
 
 **Call the AI from your browser.** With the key set, the chat window has a **Call the AI** button: you
 talk into your microphone and the AI answers out loud, with the phone rules (short spoken replies, numbers
-read back digit by digit). It hears you with Groq's free Whisper, using your menu's dish names as hints, and
-speaks with your browser's own voices (Edge and Chrome; Edge's "Natural" voices sound best). It waits
-for you to stop talking, so no button-pressing; the microphone is ignored while the AI speaks, so it doesn't
-hear itself. **Let me speak** interrupts it. This is a voice test in the browser, not a phone line: real
-phone calls need Twilio (see below).
+read back digit by digit). It hears you with Groq's free Whisper, using your menu's dish names as hints.
+It waits for you to stop talking (0.7 s of quiet ends your turn), so no button-pressing; the microphone is
+ignored while the AI speaks, so it doesn't hear itself. **Let me speak** interrupts it. If an answer takes
+more than a moment, the AI says "One moment" instead of leaving you in silence. Beside the chat you see how
+soon each reply started and where the time went. This is a voice test in the browser, not a phone line:
+real phone calls need Twilio (see below).
+
+The AI speaks with a human-sounding voice, Groq's Orpheus (free: about 10 replies a minute and 100 a day).
+It needs a one-time OK from whoever owns the Groq account: open
+[the Orpheus playground](https://console.groq.com/playground?model=canopylabs%2Forpheus-v1-english) and
+accept the terms. Until then, and whenever the free limit is reached, the browser's own voice speaks
+instead; Microsoft Edge has the most natural ones (including Pakistani English). You can also pick the
+browser's voice yourself beside the chat. `CHAT_AI_TTS_VOICE` picks the Orpheus voice (`hannah` by
+default; also autumn, diana, austin, daniel, troy).
 
 The model is `openai/gpt-oss-120b` unless you set `CHAT_AI_MODEL` (and `CHAT_AI_STT_MODEL` for hearing,
 `whisper-large-v3-turbo` by default). Any OpenAI-compatible service works: set
 `CHAT_AI_BASE_URL` too (for example `https://api.x.ai/v1` for xAI's Grok, which is paid). The free tier has
-per-minute limits; if you hit one, the chat waits briefly and then tells you to try again in a minute.
+per-minute limits, counted per model: when the main model hits one, the next model in
+`CHAT_AI_FALLBACK_MODELS` answers instead (Groq's `qwen/qwen3.8-27b`, then `openai/gpt-oss-20b`, by
+default), and only when all of them are at their limit does the chat wait briefly and then ask you to try
+again in a minute.
 
 Ports used locally: 3000 (dashboard), 4000 (API), 54321 (sign-in stand-in), 54329 (Postgres), 54330
 (Square stand-in).

@@ -56,3 +56,42 @@ export function createSpeechToText(o: {
 
   return { label, transcribe };
 }
+
+/** Speaks a short piece of text (Groq's Orpheus takes up to 200 characters at a time) as audio. */
+export interface TextToSpeech {
+  readonly label: string;
+  speak(text: string): Promise<{ audio: Uint8Array; mimeType: string }>;
+}
+
+export const SPEECH_CHUNK = 200;
+
+export function createTextToSpeech(o: { baseUrl: string; apiKey: string; model: string; voice: string; fetch?: typeof fetch }): TextToSpeech {
+  const doFetch = o.fetch ?? fetch;
+  const url = `${o.baseUrl.replace(/\/$/, "")}/audio/speech`;
+  const label = `${new URL(o.baseUrl).host === "api.groq.com" ? "Groq" : new URL(o.baseUrl).host} · ${o.model} (${o.voice})`;
+
+  async function speak(text: string) {
+    let res: Response;
+    try {
+      res = await doFetch(url, {
+        method: "POST",
+        headers: { authorization: `Bearer ${o.apiKey}`, "content-type": "application/json" },
+        body: JSON.stringify({ model: o.model, voice: o.voice, input: text.slice(0, SPEECH_CHUNK), response_format: "wav" }),
+        signal: AbortSignal.timeout(20_000),
+      });
+    } catch {
+      throw new ChatModelError("unavailable", `Couldn't reach ${label}.`);
+    }
+    if (res.ok) return { audio: new Uint8Array(await res.arrayBuffer()), mimeType: "audio/wav" };
+    const body = await res.text().catch(() => "");
+    if (/model_terms_required/.test(body)) {
+      const link = /https:\/\/console\.groq\.com\/playground[^\s"]*/.exec(body)?.[0] ?? "https://console.groq.com/playground";
+      throw new ChatModelError("auth", `The human-sounding voice needs a one-time OK from the Groq account owner: open ${link} and accept the terms.`);
+    }
+    if (res.status === 429) throw new ChatModelError("rate_limited", "The voice service is at its limit for the moment.");
+    if (res.status === 401 || res.status === 403) throw new ChatModelError("auth", `${label} refused the key.`);
+    throw new ChatModelError(res.status >= 500 ? "unavailable" : "bad_request", `${label} couldn't speak that (${res.status}${/voice/i.test(body) ? `: ${body.slice(0, 160)}` : ""}).`);
+  }
+
+  return { label, speak };
+}

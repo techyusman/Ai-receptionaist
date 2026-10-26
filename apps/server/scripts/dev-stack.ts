@@ -25,8 +25,8 @@ import { buildHandlers } from "../src/jobs/handlers.ts";
 import { grantQueueAccess, PgBossQueue } from "../src/jobs/pgboss.ts";
 import { LiveBus } from "../src/live.ts";
 import { FakeTwilio } from "../src/providers/fakes.ts";
-import { createChatModel } from "../src/providers/chat.ts";
-import { createSpeechToText } from "../src/providers/speech.ts";
+import { createChatModel, fallbackModels } from "../src/providers/chat.ts";
+import { createSpeechToText, createTextToSpeech } from "../src/providers/speech.ts";
 import { createOpenAiRealtime } from "../src/providers/realtime-openai.ts";
 import { ScriptedChatModel } from "../src/dev/chat-stub.ts";
 import { createSquareFactory } from "../src/providers/square-http.ts";
@@ -176,10 +176,11 @@ const deps: Deps = {
     realtime: config.OPENAI_API_KEY ? createOpenAiRealtime({ apiKey: config.OPENAI_API_KEY, model: config.OPENAI_REALTIME_MODEL }) : null,
     // The test chat: your own key if you set one (apps/server/.env.local), otherwise a scripted stand-in.
     chat: config.CHAT_AI_API_KEY
-      ? createChatModel({ baseUrl: config.CHAT_AI_BASE_URL, apiKey: config.CHAT_AI_API_KEY, model: config.CHAT_AI_MODEL })
+      ? createChatModel({ baseUrl: config.CHAT_AI_BASE_URL, apiKey: config.CHAT_AI_API_KEY, model: config.CHAT_AI_MODEL, fallbacks: fallbackModels(config.CHAT_AI_BASE_URL, config.CHAT_AI_FALLBACK_MODELS) })
       : new ScriptedChatModel(),
     // Calling the AI from the browser needs a real key: there is no stand-in for hearing speech.
     stt: config.CHAT_AI_API_KEY ? createSpeechToText({ baseUrl: config.CHAT_AI_BASE_URL, apiKey: config.CHAT_AI_API_KEY, model: config.CHAT_AI_STT_MODEL }) : null,
+    tts: config.CHAT_AI_API_KEY ? createTextToSpeech({ baseUrl: config.CHAT_AI_BASE_URL, apiKey: config.CHAT_AI_API_KEY, model: config.CHAT_AI_TTS_MODEL, voice: config.CHAT_AI_TTS_VOICE }) : null,
   },
   now: () => new Date(),
 };

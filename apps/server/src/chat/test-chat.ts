@@ -49,7 +49,25 @@ export type ChatTurn = {
   /** Something the chat couldn't do that a phone call would (a transfer), or a problem with the model. */
   notice: string | null;
   ended: boolean;
+  /** How long this turn took, to see where the time goes. */
+  timings?: { hearMs?: number; thinkMs: number; modelCalls: number; model?: string };
 };
+
+/**
+ * What the model is sent: the instructions, every customer and AI line, and the tool steps of the latest
+ * two turns only. Older tool results (menu search lists, order snapshots) are what made each request big,
+ * and a free tier counts every token; the order itself lives in the database and the tools read it fresh.
+ */
+export function forModel(messages: ChatMessage[]): ChatMessage[] {
+  const turns = messages.map((m, i) => (m.role === "user" ? i : -1)).filter((i) => i >= 0);
+  const keepFrom = turns.length >= 2 ? turns[turns.length - 2]! : 0;
+  return messages.flatMap((m, i): ChatMessage[] => {
+    if (i >= keepFrom || m.role === "system" || m.role === "user") return [m];
+    if (m.role === "tool") return [];
+    if (m.role === "assistant" && m.tool_calls) return m.content?.trim() ? [{ role: "assistant", content: m.content }] : [];
+    return [m];
+  });
+}
 
 export const voiceNotConfigured = () =>
   new HttpError(503, "UPSTREAM", "Calling the AI from the browser needs an AI key for hearing speech. Get a free one at console.groq.com/keys, put CHAT_AI_API_KEY=your-key in apps/server/.env.local, and restart the server.");
@@ -139,12 +157,16 @@ export class TestChats {
     chat.busy = true;
     chat.lastActive = Date.now();
     const turn: ChatTurn = { replies: [], steps: [], order: null, notice: null, ended: false };
+    const timings: NonNullable<ChatTurn["timings"]> = { thinkMs: 0, modelCalls: 0 };
+    const started = Date.now();
     let effect: { transferId?: string; endCall?: boolean } = {};
     try {
       chat.messages.push({ role: "user", content: text });
       chat.transcript.push({ speaker: "CALLER", text: redact(text), at_ms: Date.now() - chat.startedAt });
       for (let step = 0; step < MAX_STEPS; step++) {
-        const reply = await model.complete(chat.messages, chatTools);
+        const reply = await model.complete(forModel(chat.messages), chatTools);
+        timings.modelCalls++;
+        if (reply.model) timings.model = reply.model;
         if (!reply.toolCalls.length) {
           const said = plain(reply.content ?? "") || "Sorry, could you say that again?";
           chat.messages.push({ role: "assistant", content: said });
@@ -168,6 +190,8 @@ export class TestChats {
       turn.notice = e.message;
     } finally {
       chat.busy = false;
+      timings.thinkMs = Date.now() - started;
+      turn.timings = timings;
     }
 
     if (effect.transferId) {
@@ -203,14 +227,30 @@ export class TestChats {
     });
     const nothing: ChatTurn = { replies: [], steps: [], order: null, notice: null, ended: false };
     let heard: string;
+    const hearing = Date.now();
     try {
       heard = (await stt.transcribe(audio, mimeType, chat.hints)).trim();
     } catch (e) {
       if (e instanceof ChatModelError) return { heard: "", turn: { ...nothing, notice: e.message } };
       throw e;
     }
-    if (NOISE.test(heard)) return { heard: "", turn: nothing };
-    return { heard, turn: await this.send(a, lid, chatId, heard) };
+    const hearMs = Date.now() - hearing;
+    if (NOISE.test(heard)) return { heard: "", turn: { ...nothing, timings: { hearMs, thinkMs: 0, modelCalls: 0 } } };
+    const turn = await this.send(a, lid, chatId, heard);
+    return { heard, turn: { ...turn, timings: { ...turn.timings!, hearMs } } };
+  }
+
+  /** The AI's voice for one piece of a reply on a browser call (Orpheus takes 200 characters at a time). */
+  async speech(a: Access, lid: string, chatId: string, text: string): Promise<{ audio: Uint8Array; mimeType: string }> {
+    const tts = this.#deps.providers.tts;
+    if (!tts) throw new HttpError(503, "UPSTREAM", "No voice is set up on this server, so the browser's own voice is used.");
+    this.#mine(a, lid, chatId);
+    try {
+      return await tts.speak(text);
+    } catch (e) {
+      if (e instanceof ChatModelError) throw new HttpError(e.problem === "rate_limited" ? 429 : 503, "UPSTREAM", e.message);
+      throw e;
+    }
   }
 
   async end(a: Access, lid: string, chatId: string): Promise<void> {

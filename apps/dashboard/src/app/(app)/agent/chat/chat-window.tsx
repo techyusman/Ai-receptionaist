@@ -6,10 +6,12 @@ import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { chatEnd, chatHear, chatSend, chatStart } from "@/app/actions/test-chat";
 import { Button, IconButton } from "@/components/ui/button";
+import { RadioGroup } from "@/components/ui/controls";
 import { Card, StatusPill } from "@/components/ui/display";
 import type { OrderSummary } from "@/data/types";
+import type { ChatTurn } from "@/server/http/api";
 import { cn } from "@/lib/cn";
-import { useVoiceCall, type CallState } from "./use-voice-call";
+import { useVoiceCall, type CallState, type VoiceChoice } from "./use-voice-call";
 
 type Message = { id: number; from: "customer" | "ai" | "system"; text: string; at: Date };
 
@@ -25,7 +27,18 @@ const CALL_STATUS: Record<CallState, string> = {
   thinking: "Thinking…",
   speaking: "Speaking…",
 };
+/** A slow answer gets a short "one moment" after this long, so the caller isn't left in silence. */
+const HOLD_ON_MS = 1_500;
+const seconds = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
 const initials = (name: string) => name.split(/\s+/).filter((w) => /\w/.test(w)).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("");
+
+/** " (Hannah, Orpheus)" from the server's "Groq · canopylabs/orpheus-v1-english (hannah)". */
+function speechName(label: string | null) {
+  const voiceName = label?.match(/\(([^)]+)\)$/)?.[1];
+  const engine = /orpheus/i.test(label ?? "") ? "Orpheus" : null;
+  const parts = [voiceName && voiceName[0]!.toUpperCase() + voiceName.slice(1), engine].filter(Boolean);
+  return parts.length ? ` (${parts.join(", ")})` : "";
+}
 
 /** How to switch the chat from the scripted stand-in (or nothing) to a real, free AI. */
 export function GroqKeySteps() {
@@ -52,7 +65,22 @@ export function GroqKeySteps() {
  * S22b. A chat drawn like a phone messaging app, with what the AI did and the order beside it. With `voice`
  * it can also be a call from the browser: you talk, the AI answers out loud, and the transcript fills in.
  */
-export function ChatWindow({ restaurant, model, voice, country }: { restaurant: string; model: string; voice: boolean; country: string }) {
+export function ChatWindow({
+  restaurant,
+  model,
+  voice,
+  speech,
+  country,
+  locationId,
+}: {
+  restaurant: string;
+  model: string;
+  voice: boolean;
+  /** The server's human-sounding voice, or null when only the browser's voice can speak. */
+  speech: string | null;
+  country: string;
+  locationId: string;
+}) {
   const [chatId, setChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [steps, setSteps] = useState<string[]>([]);
@@ -62,6 +90,8 @@ export function ChatWindow({ restaurant, model, voice, country }: { restaurant: 
   const [pending, start] = useTransition();
   const [inCall, setInCall] = useState(false);
   const [callSeconds, setCallSeconds] = useState(0);
+  const [voiceChoice, setVoiceChoice] = useState<VoiceChoice>(speech ? "human" : "browser");
+  const [timings, setTimings] = useState<ChatTurn["timings"] | null>(null);
   const nextId = useRef(0);
   const chatIdRef = useRef<string | null>(null);
   /** The greeting of the chat just started, so a call can say it out loud. */
@@ -87,20 +117,32 @@ export function ChatWindow({ restaurant, model, voice, country }: { restaurant: 
   }, [inCall]);
 
   // One spoken turn: the server hears it and answers; the answer is spoken, then the call listens again.
-  const call = useVoiceCall({ country, onTurn: (audio: Blob) => void heardTurn(audio) });
+  const call = useVoiceCall({
+    country,
+    locationId,
+    voice: voiceChoice,
+    onTurn: (audio: Blob) => void heardTurn(audio),
+    onNotice: (message: string) => add("system", message),
+  });
 
   async function heardTurn(audio: Blob) {
     const id = chatIdRef.current;
     if (!id) return;
     const form = new FormData();
     form.append("audio", audio, "speech.webm");
+    // No dead air: a slow answer gets a short "one moment" first, as a person would say.
+    let holding = Promise.resolve();
+    const hold = setTimeout(() => (holding = call.holdOn()), HOLD_ON_MS);
     const r = await chatHear(id, form);
+    clearTimeout(hold);
+    await holding;
     if (!r.ok) {
       add("system", r.message);
       if (/has ended/.test(r.message)) return hangUp(false);
       return call.listen();
     }
     const { heard, turn } = r.data;
+    if (turn.timings) setTimings(turn.timings);
     if (heard) add("customer", heard);
     for (const reply of turn.replies) add("ai", reply);
     if (turn.steps.length) setSteps((s) => [...s, ...turn.steps]);
@@ -125,6 +167,7 @@ export function ChatWindow({ restaurant, model, voice, country }: { restaurant: 
         call.close();
         return;
       }
+      call.attach(id);
       setCallSeconds(0);
       setInCall(true);
       const greeting = messagesGreeting.current;
@@ -188,6 +231,7 @@ export function ChatWindow({ restaurant, model, voice, country }: { restaurant: 
         return;
       }
       for (const reply of r.data.replies) add("ai", reply);
+      if (r.data.timings) setTimings(r.data.timings);
       if (r.data.steps.length) setSteps((s) => [...s, ...r.data.steps]);
       setOrder(r.data.order);
       if (r.data.notice) add("system", r.data.notice);
@@ -370,6 +414,44 @@ export function ChatWindow({ restaurant, model, voice, country }: { restaurant: 
             )}
             <p className="text-xs text-muted">Answering with {model}.</p>
           </Card>
+
+          {voice && (
+            <Card className="flex flex-col gap-3">
+              <h2 className="text-lg text-fg">On a call</h2>
+              <RadioGroup
+                legend="The AI's voice"
+                value={voiceChoice}
+                onValueChange={(v) => setVoiceChoice(v as VoiceChoice)}
+                disabled={inCall}
+                options={[
+                  {
+                    value: "human",
+                    title: `Human-like${speechName(speech)}`,
+                    description: "Sounds like a person. Free for about 100 replies a day; past that, the browser's voice takes over.",
+                    disabledReason: speech ? undefined : "Not set up on this server: it needs CHAT_AI_API_KEY in apps/server/.env.local.",
+                  },
+                  {
+                    value: "browser",
+                    title: "This browser's voice",
+                    description: "No limit. Microsoft Edge has the most natural ones, including Pakistani English.",
+                  },
+                ]}
+              />
+              <p className="text-sm text-fg" aria-live="polite">
+                {call.timing
+                  ? `Last reply started ${seconds(call.timing.gapMs)} after you stopped talking${timings?.hearMs !== undefined ? `: hearing you ${seconds(timings.hearMs)}, the AI ${seconds(timings.thinkMs)}` : ""}, voice ${seconds(call.timing.voiceMs)} (${call.timing.voice}).`
+                  : timings
+                    ? `Last answer took ${seconds((timings.hearMs ?? 0) + timings.thinkMs)}.`
+                    : "Each reply's speed shows here."}
+              </p>
+              {timings && (
+                <p className="text-xs text-muted">
+                  {timings.modelCalls} AI {timings.modelCalls === 1 ? "step" : "steps"}
+                  {timings.model ? ` on ${timings.model}` : ""}. Your turn ends after 0.7 s of quiet.
+                </p>
+              )}
+            </Card>
+          )}
         </div>
       </div>
     </div>

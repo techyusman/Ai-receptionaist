@@ -259,10 +259,19 @@ export async function getTestOrder(orderId: string): Promise<Order | null> {
 
 /* The test chat (S22b): texting the AI through the same tools as a call -------------------------- */
 
-export type ChatTurn = { replies: string[]; steps: string[]; order: OrderSummary | null; notice: string | null; ended: boolean };
+export type ChatTurn = {
+  replies: string[];
+  steps: string[];
+  order: OrderSummary | null;
+  notice: string | null;
+  ended: boolean;
+  /** Where the time went: hearing the clip, then the AI's steps until it answered. */
+  timings?: { hearMs?: number; thinkMs: number; modelCalls: number; model?: string };
+};
 const chatBase = async () => `/locations/${await loc()}/test-chat`;
 
-export async function getTestChatStatus(): Promise<{ configured: boolean; model: string | null; voice: boolean }> {
+/** `voice`: a call can be heard; `speech`: the human-sounding voice that speaks on a call, if there is one. */
+export async function getTestChatStatus(): Promise<{ configured: boolean; model: string | null; voice: boolean; speech: string | null }> {
   return get(await chatBase());
 }
 /** "voice" is a call from the browser: the AI follows the phone rules and its replies are spoken. */

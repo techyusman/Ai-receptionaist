@@ -56,6 +56,11 @@ const schema = z.object({
   CHAT_AI_MODEL: z.string().default("openai/gpt-oss-120b"),
   // Speech to text for calling the AI from the browser, on the same service and key.
   CHAT_AI_STT_MODEL: z.string().default("whisper-large-v3-turbo"),
+  // Used while the main model is at its rate limit, in order (comma-separated). Empty means Groq's defaults.
+  CHAT_AI_FALLBACK_MODELS: optionalString,
+  // The AI's voice on a browser call. Orpheus sounds human; Groq asks the account owner to accept its terms once.
+  CHAT_AI_TTS_MODEL: z.string().default("canopylabs/orpheus-v1-english"),
+  CHAT_AI_TTS_VOICE: z.string().default("hannah"),
 
   SQUARE_API_VERSION: z.string().default("2026-08-19"),
   SQUARE_APPLICATION_ID_SANDBOX: optionalString,

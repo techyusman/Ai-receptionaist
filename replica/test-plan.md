@@ -201,3 +201,4 @@ been run. 15 bugs were found on the way; see `replica/bugs.md`.
 | M-6 | Sign-in emails | the code arrives within a minute, from your domain |
 | M-7 | Staff alert text | arrives (needs A2P 10DLC) |
 | M-8 | AI agent > Chat test > Call the AI, in Edge, with the Groq key set: order a zinger meal by voice, give 0300 1234567 | it hears you, answers out loud, asks for the drink and spice level, reads the number back, and the order shows on Live orders |
+| M-9 | Same call, after accepting Groq's Orpheus terms: order, then ask something slow ("what pizzas do you have under 1500?") | the replies are in the human-sounding voice; a slow answer is preceded by "One moment"; beside the chat each reply starts within about 2-3 s of you stopping; before accepting the terms, the browser's voice speaks and the chat says why |

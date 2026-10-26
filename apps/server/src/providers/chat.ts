@@ -8,7 +8,7 @@ export type ChatMessage =
   | { role: "assistant"; content: string | null; tool_calls?: ChatToolCall[] }
   | { role: "tool"; tool_call_id: string; content: string };
 export type ChatTool = { type: "function"; function: { name: string; description: string; parameters: Record<string, unknown> } };
-export type ChatReply = { content: string | null; toolCalls: ChatToolCall[] };
+export type ChatReply = { content: string | null; toolCalls: ChatToolCall[]; /** Which model answered (one of the fallbacks when the main one was busy). */ model?: string };
 
 export interface ChatModel {
   /** Shown on the chat screen, e.g. "Groq · openai/gpt-oss-120b". */
@@ -40,17 +40,30 @@ export function waitFrom(headers: Headers): number | null {
   return null;
 }
 
+/** Groq's free models each have their own per-minute allowance; these take over while the main one is busy. */
+export function fallbackModels(baseUrl: string, configured: string | undefined): string[] {
+  if (configured) return configured.split(",").map((m) => m.trim()).filter(Boolean);
+  return /api\.groq\.com/.test(baseUrl) ? ["qwen/qwen3.8-27b", "openai/gpt-oss-20b"] : [];
+}
+
 export function createChatModel(o: {
   baseUrl: string;
   apiKey: string;
   model: string;
+  /**
+   * Models to switch to, in order, while the main one is at its rate limit. On Groq each model has its own
+   * per-minute allowance, so switching answers at once where waiting could take most of a minute.
+   */
+  fallbacks?: string[];
   fetch?: typeof fetch;
   sleep?: (ms: number) => Promise<void>;
-  /** The longest the free tier's rate limit is waited out before giving up. */
+  now?: () => number;
+  /** The longest a rate limit is waited out (when every model is at its limit) before giving up. */
   maxWaitMs?: number;
 }): ChatModel {
   const doFetch = o.fetch ?? fetch;
   const sleep = o.sleep ?? ((ms: number) => new Promise((r) => setTimeout(r, ms)));
+  const now = o.now ?? Date.now;
   const maxWait = o.maxWaitMs ?? 30_000;
   const url = `${o.baseUrl.replace(/\/$/, "")}/chat/completions`;
   const host = (() => {
@@ -61,22 +74,27 @@ export function createChatModel(o: {
     }
   })();
   const label = `${PROVIDERS[host] ?? host} · ${o.model}`;
+  const models = [o.model, ...(o.fallbacks ?? []).filter((m) => m && m !== o.model)];
+  /** When each model's rate limit is expected to have room again. */
+  const coolingUntil = new Map<string, number>();
+  // Reasoning models think less for a short reply, which is faster and keeps a free tier's token budget.
+  const reasoning = (model: string) => (/gpt-oss/.test(model) ? { reasoning_effort: "low" } : /qwen3/.test(model) ? { reasoning_effort: "none" } : {});
 
   async function complete(messages: ChatMessage[], tools: ChatTool[]): Promise<ChatReply> {
-    const body = {
-      model: o.model,
-      messages,
-      tools,
-      tool_choice: "auto",
-      temperature: 0.3,
-      max_completion_tokens: 1024,
-      // Reasoning models think less for a short reply, which also keeps a free tier's token budget.
-      ...(/gpt-oss/.test(o.model) ? { reasoning_effort: "low" } : {}),
-    };
     let waited = 0;
     let retriedServer = false;
     let retriedToolFormat = false;
     for (;;) {
+      const model = models.find((m) => (coolingUntil.get(m) ?? 0) <= now());
+      if (!model) {
+        // Every model is at its limit: wait for the first to have room, within the budget.
+        const wait = Math.max(250, Math.min(...models.map((m) => coolingUntil.get(m) ?? 0)) - now());
+        if (waited + wait > maxWait) throw new ChatModelError("rate_limited", "The free AI service is at its limit for the moment. Wait a minute, then send your message again.");
+        waited += wait;
+        await sleep(wait);
+        continue;
+      }
+      const body = { model, messages, tools, tool_choice: "auto", temperature: 0.3, max_completion_tokens: 1024, ...reasoning(model) };
       let res: Response;
       try {
         res = await doFetch(url, {
@@ -96,19 +114,19 @@ export function createChatModel(o: {
       if (res.ok) {
         const j = (await res.json()) as { choices?: { message?: { content?: string | null; tool_calls?: ChatToolCall[] } }[] };
         const m = j.choices?.[0]?.message ?? {};
-        return { content: m.content ?? null, toolCalls: (m.tool_calls ?? []).filter((c) => c?.function?.name) };
+        return { content: m.content ?? null, toolCalls: (m.tool_calls ?? []).filter((c) => c?.function?.name), model };
       }
       const text = await res.text().catch(() => "");
       if (res.status === 429) {
-        const wait = Math.min(waitFrom(res.headers) ?? 5000, 20_000);
-        if (waited + wait <= maxWait) {
-          waited += wait;
-          await sleep(wait);
-          continue;
-        }
-        throw new ChatModelError("rate_limited", "The free AI service is at its limit for the moment. Wait a minute, then send your message again.");
+        coolingUntil.set(model, now() + Math.min(waitFrom(res.headers) ?? 5000, 60_000));
+        continue;
       }
       if (res.status === 401 || res.status === 403) throw new ChatModelError("auth", `${label} refused the key. Check CHAT_AI_API_KEY in apps/server/.env.local.`);
+      // A fallback that this key can't use is simply skipped from now on.
+      if (res.status === 404 && model !== o.model) {
+        coolingUntil.set(model, Number.POSITIVE_INFINITY);
+        continue;
+      }
       if (res.status === 404) throw new ChatModelError("bad_request", `${label} isn't available with this key. Check CHAT_AI_MODEL in apps/server/.env.local.`);
       // A model that writes a malformed tool call gets one more go before we give up.
       if (res.status === 400 && /tool_use_failed|tool call/i.test(text) && !retriedToolFormat) {

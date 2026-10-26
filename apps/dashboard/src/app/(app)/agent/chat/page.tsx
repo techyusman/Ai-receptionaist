@@ -40,5 +40,14 @@ async function ChatContent() {
       </Card>
     );
   }
-  return <ChatWindow restaurant={session.restaurant.name} model={status.model} voice={status.voice} country={location.address.country} />;
+  return (
+    <ChatWindow
+      restaurant={session.restaurant.name}
+      model={status.model}
+      voice={status.voice}
+      speech={status.speech ?? null}
+      country={location.address.country}
+      locationId={location.id}
+    />
+  );
 }
