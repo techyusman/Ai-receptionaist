@@ -1,5 +1,6 @@
 import "server-only";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { cache } from "react";
 import type { Role, Session } from "@/data/types";
 import { can, type Capability } from "@/lib/permissions";
@@ -16,6 +17,9 @@ export type Me = {
 
 /** Who is signed in, asked of the API once per request. */
 export const getMe = cache(async (): Promise<Me | null> => {
+  // Everything that depends on who is signed in renders per request, never ahead of time: say so before
+  // anything else runs, so nothing on the way (the API call, its timers) counts as prerendering.
+  await connection();
   if (!(await getAuth())) return null;
   return get<Me>("/me");
 });
