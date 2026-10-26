@@ -30,7 +30,7 @@ test("F15-H1 chat with the AI: greeting, hours and a menu search through the rea
 
   await chat.getByLabel("Message", { exact: true }).fill("is the meat halal?");
   await chat.getByRole("button", { name: "Send" }).click();
-  await expect(log.getByText("Yes. All our chicken, beef and lamb is halal, from a certified supplier.")).toBeVisible();
+  await expect(log.getByText("Yes, everything we serve is halal: chicken, beef and mutton from a certified supplier.")).toBeVisible();
   expect(await axe(page)).toEqual([]);
 
   await chat.getByRole("button", { name: "End chat" }).click();
@@ -60,7 +60,7 @@ test("F15-N1/E5 staff can't open the chat; the bigger menu is there with its cho
 
   await page.goto("/menu", { waitUntil: "networkidle" });
   const table = page.getByRole("table", { name: "Menu items" });
-  for (const name of ["Zinger Burger", "Chicken Tikka Pizza", "Lamb Karahi", "Biryani"]) await expect(table.getByRole("link", { name, exact: true })).toBeVisible();
+  for (const name of ["Zinger Burger", "Chicken Tikka Pizza", "Mutton Karahi", "Biryani"]) await expect(table.getByRole("link", { name, exact: true })).toBeVisible();
   await expect(table.getByRole("row").filter({ hasText: "Beef Nihari" })).toContainText("Sold out in Square");
   await expect(table.getByRole("row").filter({ hasText: "Biryani Tray" })).toContainText("No fixed price");
   await expect(table.getByRole("link", { name: "Latte", exact: true })).toHaveCount(0);

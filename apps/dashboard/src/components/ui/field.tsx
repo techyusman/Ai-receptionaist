@@ -1,5 +1,6 @@
 "use client";
 
+import { prettyPhone, toE164 as toPhoneE164 } from "@receptionist/domain";
 import { CircleAlert } from "lucide-react";
 import { createContext, useContext, useId, useState } from "react";
 import { cn, focusRing } from "@/lib/cn";
@@ -127,29 +128,20 @@ export function Textarea({
   );
 }
 
-/** North American numbers for now; replica-build swaps in libphonenumber-js for real parsing. */
-export function toE164(raw: string, country = "1"): string | null {
-  const digits = raw.replace(/\D/g, "");
-  if (digits.length === 10) return `+${country}${digits}`;
-  if (digits.length === 11 && digits.startsWith(country)) return `+${digits}`;
-  return null;
-}
-
-function pretty(e164: string) {
-  const d = e164.slice(2);
-  return `+1 ${d.slice(0, 3)} ${d.slice(3, 6)} ${d.slice(6)}`;
-}
-
+/** A phone number typed the way the restaurant's country writes it (0300 1234567 in Pakistan). */
 export function PhoneInput({
   defaultValue = "",
+  country = "US",
   onValueChange,
   ...props
 }: Omit<React.ComponentProps<"input">, "defaultValue"> & {
   defaultValue?: string;
+  /** ISO country the number is typed in, e.g. "PK" for 0300 1234567. */
+  country?: string;
   onValueChange?: (e164: string | null) => void;
 }) {
   const [value, setValue] = useState(defaultValue);
-  const e164 = toE164(value);
+  const e164 = toPhoneE164(value, country);
   return (
     <div className="flex flex-col gap-1">
       <Input
@@ -159,11 +151,11 @@ export function PhoneInput({
         value={value}
         onChange={(e) => {
           setValue(e.target.value);
-          onValueChange?.(toE164(e.target.value));
+          onValueChange?.(toPhoneE164(e.target.value, country));
         }}
         {...props}
       />
-      {e164 && <span className="text-xs text-muted">Saved as {pretty(e164)}</span>}
+      {e164 && <span className="text-xs text-muted">Saved as {prettyPhone(e164)}</span>}
     </div>
   );
 }

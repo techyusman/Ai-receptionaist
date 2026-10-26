@@ -8,6 +8,7 @@
     "start": "node --env-file-if-exists=.env.local src/main.ts",
     "worker": "node --env-file-if-exists=.env.local src/worker.ts",
     "dev:stack": "node --env-file-if-exists=.env.local scripts/dev-stack.ts",
+    "dev:fresh": "node --env-file-if-exists=.env.local scripts/dev-stack.ts --fresh",
     "migrate": "node scripts/migrate.ts",
     "test": "node --test --test-concurrency=1 \"test/**/*.test.ts\"",
     "typecheck": "tsc --noEmit -p ."

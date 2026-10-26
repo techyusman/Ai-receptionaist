@@ -111,7 +111,7 @@ const locationDetails = z.object({
   name: z.string().trim().min(1, "Give the location a name.").max(120),
   timezone: z.string().refine((tz) => Intl.supportedValuesOf("timeZone").includes(tz), "Pick a time zone from the list."),
   directions: z.string().trim().max(500),
-  publicPhone: z.string().regex(/^\+[1-9]\d{6,14}$/, "Use the full number with country code, like +1 212 555 0142.").nullable(),
+  publicPhone: z.string().regex(/^\+[1-9]\d{6,14}$/, "Use the full number with country code, like +1 212 555 0142 or +92 300 1234567.").nullable(),
   website: z.string().trim().url("Use a full web address, like https://example.com.").nullable(),
   address: z.object({
     line1: z.string().trim().min(1, "Add the street address.").max(120),

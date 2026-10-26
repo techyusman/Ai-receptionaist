@@ -4,7 +4,7 @@ import { z } from "zod";
 import { run } from "@/server/action";
 import * as api from "@/server/api";
 
-const e164 = z.string().regex(/^\+[1-9]\d{6,14}$/, "Use the full number with country code, like +1 212 555 0142.");
+const e164 = z.string().regex(/^\+[1-9]\d{6,14}$/, "Use the full number with country code, like +1 212 555 0142 or +92 300 1234567.");
 
 const settingsPatch = z
   .object({

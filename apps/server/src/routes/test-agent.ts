@@ -7,13 +7,13 @@ import { confirm, readyForConfirmation, searchMenu, toOrderLine, validateSelecti
 import { maybeOne, one, type Tx } from "@receptionist/db";
 import type { FastifyInstance } from "fastify";
 import { randomUUID } from "node:crypto";
-import parsePhone from "libphonenumber-js";
 import { z } from "zod";
 import { endCall } from "../calls/outcome.ts";
 import { addEvent } from "../calls/service.ts";
 import type { Deps } from "../deps.ts";
 import { notFound, rule } from "../errors.ts";
 import { lidParam, parse, who } from "../http.ts";
+import { parseLocalPhone, phoneProblem } from "../phone.ts";
 import { signal } from "../live.ts";
 import { loadMenu } from "../menu/read.ts";
 import { loadOrder } from "../orders/repo.ts";
@@ -99,11 +99,13 @@ export function registerTestAgentRoutes(api: FastifyInstance, deps: Deps) {
     const { lid, oid } = parse(orderParam, req.params);
     const a = await deps.access.forLocation(who(req), lid, "agent.test");
     const { name, phone } = parse(testCustomerInput, req.body);
-    const p = parsePhone(phone, "US");
-    if (!p?.isValid()) throw rule("That isn't a 10-digit US number. Read it back digit by digit.", "phone");
     return tenant(deps, a, async (tx) => {
+      // Read in the restaurant's own country: 0300 1234567 in Lahore, 212 555 0101 in New York.
+      const loc = await one<{ country: string | null }>(tx, "select country from locations where id = $1", [lid]);
+      const number = parseLocalPhone(phone, loc.country);
+      if (!number) throw rule(phoneProblem(loc.country), "phone");
       await testOrder(tx, lid, oid);
-      await updateDraft(tx, oid, { op: "customer", customer: { name, phone: p.number, phoneSource: "SPOKEN" } }, AI);
+      await updateDraft(tx, oid, { op: "customer", customer: { name, phone: number, phoneSource: "SPOKEN" } }, AI);
       return { ok: true };
     });
   });

@@ -19,7 +19,7 @@ before(async () => {
   h = await startHarness();
   const { restaurantId, locationId } = await signUp(h, newUser("Ali Owner"), "Tandoor & Crust");
   // Both sample menus share one Square stand-in; this location must get only its own.
-  const parsed = parseCatalog([...thirdSpaceCatalog(), ...tandoorCrustCatalog()], TANDOOR_SQUARE_LOCATION, "USD");
+  const parsed = parseCatalog([...thirdSpaceCatalog(), ...tandoorCrustCatalog()], TANDOOR_SQUARE_LOCATION, "PKR");
   await withSystem(h.db, (tx) => applyCatalog(tx, { restaurantId, locationId, parsed, full: true, at }));
   menu = await withSystem(h.db, (tx) => loadMenu(tx, locationId));
 });
@@ -35,13 +35,14 @@ const named = (name: string): MenuItem => {
 const listId = (name: string) => Object.values(menu.lists).find((l) => l.name === name)!.id;
 const option = (list: string, name: string) => menu.lists[listId(list)]!.options.find((o) => o.name === name)!.id;
 
-test("38 items and none of the café's", () => {
+test("38 items in rupees, and none of the café's", () => {
   assert.equal(menu.items.filter((i) => !i.deleted).length, 38);
+  assert.equal(named("Zinger Burger").variations[0]!.priceMinor, 65000, "Rs 650");
   assert.equal(menu.items.find((i) => i.name === "Latte"), undefined);
 });
 
 test("a karahi needs a size and a spice level; the sold-out full size can't be chosen", () => {
-  const karahi = named("Lamb Karahi");
+  const karahi = named("Mutton Karahi");
   const half = karahi.variations.find((v) => v.name === "Half")!;
   const full = karahi.variations.find((v) => v.name === "Full")!;
   assert.equal(full.soldOut, true);

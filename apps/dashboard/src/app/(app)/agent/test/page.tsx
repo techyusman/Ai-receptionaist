@@ -42,6 +42,7 @@ async function TestContent({ searchParams }: { searchParams: PageProps<"/agent/t
       order={order}
       aiNumber={numbers.find((n) => n.enabled)?.e164 ?? null}
       currency={location.currency}
+      country={location.address.country}
       restaurant={session.restaurant.name}
       pickupPolicy={settings.pickupPolicy}
       orderingOn={location.orderingMode !== "DISABLED" && settings.orderingEnabled}

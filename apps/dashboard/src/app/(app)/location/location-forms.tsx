@@ -1,6 +1,6 @@
 "use client";
 
-import { findOverlaps, WEEKDAYS, type Shift } from "@receptionist/domain";
+import { findOverlaps, toE164, WEEKDAYS, type Shift } from "@receptionist/domain";
 import { Plus, Trash } from "lucide-react";
 import { useState } from "react";
 import { addSpecialHours, deleteSpecialHours, putHours, updateLocation } from "@/app/actions/content";
@@ -33,7 +33,8 @@ export function LocationDetails({ location, zones }: { location: Location; zones
   const save = useAction();
   const set = (k: keyof typeof d, v: string) => setD((x) => ({ ...x, [k]: v }));
   const phoneDigits = d.publicPhone.replace(/\D/g, "");
-  const publicPhone = !phoneDigits ? null : phoneDigits.length === 10 ? `+1${phoneDigits}` : `+${phoneDigits}`;
+  // Read in the location's country (042 3500 0189 in Lahore); a full +country number works anywhere.
+  const publicPhone = !phoneDigits ? null : (toE164(d.publicPhone, location.address.country) ?? `+${phoneDigits}`);
   return (
     <Card className="flex flex-col gap-4">
       <h2 className="text-lg text-fg">Location details</h2>

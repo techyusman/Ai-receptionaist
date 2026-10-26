@@ -1,7 +1,7 @@
-// The second sample restaurant: Tandoor & Crust, a burger, pizza and Pakistani kitchen with a bigger menu
-// than the café's, its own owner and staff, and phone orders going to Live orders. No history: it is a
-// fresh restaurant for trying the AI (by test call or test chat) on a menu with many choices. Every name,
-// number and address is invented (555-01xx numbers are reserved for fiction).
+// The second sample restaurant: Tandoor & Crust in Lahore, a burger, pizza and Pakistani kitchen with a
+// bigger menu than the café's, priced in rupees, on Pakistan time, with Pakistani (+92) numbers. Its own
+// owner and staff; phone orders go to Live orders. No history: a fresh restaurant for trying the AI (by
+// test call or chat test) on a menu with many choices. Every name, number and address is invented.
 import { many, maybeOne, one, withSystem, type Db, type Tx } from "@receptionist/db";
 import type { TokenCipher } from "../crypto.ts";
 import { applyCatalog } from "../menu/apply.ts";
@@ -14,16 +14,17 @@ export const TANDOOR_PEOPLE = [
   { email: "sara@tandoorcrust.test", name: "Sara Khan", role: "STAFF" },
 ] as const;
 
-const NUMBERS = { publicPhone: "+17185550189", aiNumber: "+17185550190", counter: "+17185550191", owner: "+17185550192" };
+// 042 3500 0189 (a Lahore landline), 0300 0000191 (a mobile), and so on. Dummies: the dev stack never dials.
+const NUMBERS = { publicPhone: "+924235000189", aiNumber: "+924235000190", counter: "+923000000191", owner: "+923000000192" };
 
 const FAQS: [string, string, string[]][] = [
-  ["Is your meat halal?", "Yes. All our chicken, beef and lamb is halal, from a certified supplier.", ["is it halal", "zabiha"]],
-  ["Do you deliver?", "Phone orders are for pickup. For delivery, you'll find us on the usual delivery apps.", ["delivery"]],
+  ["Is your meat halal?", "Yes, everything we serve is halal: chicken, beef and mutton from a certified supplier.", ["is it halal", "zabiha"]],
+  ["Do you deliver?", "Phone orders are for pickup. For delivery, you'll find us on the food delivery apps.", ["delivery"]],
   ["How spicy is the food?", "Curries, grills and anything marked spicy come mild, medium, hot or extra hot. Medium is our house level.", ["spice level"]],
   ["Do you have vegetarian options?", "Yes: daal makhani, palak paneer, vegetable biryani, vegetable samosas, chaat papri, Margherita pizza and all the breads.", ["vegetarian", "veg options"]],
-  ["Where can I park?", "There's metered street parking on Roosevelt Avenue and a public lot one block east.", ["parking"]],
+  ["Where can I park?", "There's free parking right in front of the restaurant on Main Boulevard.", ["parking"]],
   ["Do you do catering?", "Yes, biryani and karahi trays for groups of ten or more. Give us two days' notice; the owner prices it with you.", ["catering", "party order"]],
-  ["How do I pay?", "Cash or card when you pick up. We don't take payment over the phone.", ["payment", "card"]],
+  ["How do I pay?", "Cash or card when you pick up. We don't take payment over the phone.", ["payment", "card", "jazzcash", "easypaisa"]],
   ["How long does a pickup order take?", "Usually 20 to 25 minutes. Karahi is cooked fresh, so allow about 30.", ["wait time"]],
 ];
 
@@ -47,11 +48,11 @@ export async function seedTandoorCrust(db: Db, opts: { cipher: TokenCipher; squa
     const rid = r.id;
     const l = await one<{ id: string }>(
       tx,
-      `insert into locations (restaurant_id, name, timezone, address_line1, city, region, postal_code, country, directions, public_phone_e164, website, status,
+      `insert into locations (restaurant_id, name, timezone, address_line1, city, region, postal_code, country, directions, public_phone_e164, website, status, currency,
                               ordering_mode, pos_feasibility, pos_feasibility_note, pos_feasibility_signed_off_by, pos_feasibility_signed_off_at, estimate_tax_rate_percent)
-       values ($1, 'Jackson Heights', 'America/New_York', '88 Roosevelt Avenue', 'Queens', 'NY', '11372', 'US', 'Under the 7 train, two doors from the corner.',
-               $2, 'https://tandoorcrust.example', 'LIVE', 'DASHBOARD_TICKET', 'FALLBACK_APPROVED',
-               'The owner approved taking phone orders on the Live orders screen.', $3, now(), 8.875)
+       values ($1, 'Gulberg', 'Asia/Karachi', '24-B Main Boulevard, Gulberg III', 'Lahore', 'Punjab', '54660', 'PK', 'On Main Boulevard, opposite the park, next to the bank.',
+               $2, 'https://tandoorcrust.example', 'LIVE', 'PKR', 'DASHBOARD_TICKET', 'FALLBACK_APPROVED',
+               'The owner approved taking phone orders on the Live orders screen.', $3, now(), 16)
        returning id`,
       [rid, NUMBERS.publicPhone, people.OWNER],
     );
@@ -78,7 +79,7 @@ export async function seedTandoorCrust(db: Db, opts: { cipher: TokenCipher; squa
     const integ = await one<{ id: string }>(
       tx,
       `insert into pos_integrations (restaurant_id, location_id, environment, merchant_id, merchant_name, pos_location_id, pos_location_name, status, scopes, connected_by)
-       values ($1, $2, 'SANDBOX', 'MSAMPLE', 'Tandoor & Crust', $3, 'Tandoor & Crust - Jackson Heights', 'DISCONNECTED', '{MERCHANT_PROFILE_READ,ITEMS_READ,ORDERS_READ,ORDERS_WRITE}', $4) returning id`,
+       values ($1, $2, 'SANDBOX', 'MSAMPLE', 'Tandoor & Crust', $3, 'Tandoor & Crust - Gulberg', 'DISCONNECTED', '{MERCHANT_PROFILE_READ,ITEMS_READ,ORDERS_READ,ORDERS_WRITE}', $4) returning id`,
       [rid, lid, TANDOOR_SQUARE_LOCATION, people.OWNER],
     );
     await tx.query(
@@ -86,7 +87,7 @@ export async function seedTandoorCrust(db: Db, opts: { cipher: TokenCipher; squa
         where id = $1`,
       [integ.id, opts.cipher.encrypt(opts.squareTokens.access, `${integ.id}:access`), opts.cipher.encrypt(opts.squareTokens.refresh, `${integ.id}:refresh`), opts.cipher.version],
     );
-    await applyCatalog(tx, { restaurantId: rid, locationId: lid, parsed: parseCatalog(tandoorCrustCatalog(), TANDOOR_SQUARE_LOCATION, "USD"), full: true, at: new Date() });
+    await applyCatalog(tx, { restaurantId: rid, locationId: lid, parsed: parseCatalog(tandoorCrustCatalog(), TANDOOR_SQUARE_LOCATION, "PKR"), full: true, at: new Date() });
     await tx.query("insert into catalog_syncs (restaurant_id, location_id, kind, trigger, status, finished_at, objects_upserted, catalog_high_water) values ($1, $2, 'FULL', 'CONNECT', 'SUCCEEDED', now(), 120, now())", [rid, lid]);
     const items = await many<{ id: string; name: string }>(tx, "select id, name from menu_items where location_id = $1", [lid]);
     const byName = new Map(items.map((i) => [i.name, i.id]));

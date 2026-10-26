@@ -172,6 +172,7 @@ been run. 15 bugs were found on the way; see `replica/bugs.md`.
 | F15-E3 | edge: the free AI is busy | the model is rate limited or fails | a short wait, then "try again in a minute"; the chat stays open | server `test-chat.test` | pass |
 | F15-E4 | edge: numbers in the transcript | a phone or card number in a message | masked to the last four digits in what is kept | server `test-chat.test` | pass |
 | F15-E5 | edge: the bigger menu | spice level required, meal deal asks for a drink, at most five toppings, sold-out size and dish, a tray with no fixed price | each enforced; the sold-out and unpriced never offered; none of the café's items | server `sample-menu.test` + e2e | pass |
+| F15-E6 | edge: Pakistani numbers | in the Lahore restaurant, give 0300 1234567 as the callback number; in New York, the same number, then +92 300 1234567 | Lahore stores +923001234567; New York refuses the local form with a US example and takes the +92 form | server `phone.test` | pass |
 | F15-N1 | negative: permission | staff open the chat; a manager writes into the owner's chat; another restaurant uses the chat's id | refused | server `test-chat.test` + e2e | pass |
 | F15-N2 | negative: no key | the server has no chat model | explains how to add a free key | server `test-chat.test` | pass |
 

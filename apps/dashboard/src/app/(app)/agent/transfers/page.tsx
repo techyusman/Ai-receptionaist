@@ -26,6 +26,6 @@ export default function TransfersPage() {
 async function Content() {
   const session = await requireSession();
   if (!can(session.role, "settings.edit")) return <NoAccess />;
-  const [targets, settings] = await Promise.all([api.getTransferTargets(), api.getSettings()]);
-  return <Transfers targets={targets} settings={settings} />;
+  const [targets, settings, location] = await Promise.all([api.getTransferTargets(), api.getSettings(), api.getLocation()]);
+  return <Transfers targets={targets} settings={settings} country={location.address.country} />;
 }

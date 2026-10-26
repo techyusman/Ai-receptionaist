@@ -1,9 +1,9 @@
 import { OrderRuleError, toOrderLine, validateSelection, type DraftChange } from "@receptionist/domain";
 import { withSystem } from "@receptionist/db";
-import parsePhone from "libphonenumber-js";
 import { z } from "zod";
 import { loadMenu } from "../../menu/read.ts";
 import { revalidate } from "../../orders/revalidate.ts";
+import { parseLocalPhone } from "../../phone.ts";
 import { updateDraft } from "../../orders/service.ts";
 import { orderingAvailability } from "../availability.ts";
 import { currentOrder, describeOrder, digitsForReadBack, selectionFrom, startOrder } from "./order-support.ts";
@@ -109,16 +109,16 @@ export const setCustomerDetails: ToolDef<typeof customerSchema> = {
   },
   schema: customerSchema,
   async run(deps, ctx, a) {
-    const parsed = parsePhone(a.phone, "US");
-    if (!parsed?.isValid()) return refuse("BAD_PHONE", "That doesn't sound like a full phone number. Ask the caller to say it again, digit by digit.");
+    const number = parseLocalPhone(a.phone, ctx.country);
+    if (!number) return refuse("BAD_PHONE", "That doesn't sound like a full phone number. Ask the caller to say it again, digit by digit.");
     // "Confirmed caller ID" is only believed if it really is the number they called from.
-    const source = a.phone_source === "caller_id_confirmed" && ctx.fromE164 && parsed.number === ctx.fromE164 ? "CALLER_ID_CONFIRMED" : "SPOKEN";
+    const source = a.phone_source === "caller_id_confirmed" && ctx.fromE164 && number === ctx.fromE164 ? "CALLER_ID_CONFIRMED" : "SPOKEN";
     try {
       return await withSystem(deps.db, async (tx) => {
         const order = await currentOrder(tx, ctx);
         if (!order) return refuse("NO_ORDER", "Start the order first, then take their details.");
-        const updated = await updateDraft(tx, order.id, { op: "customer", customer: { name: a.name, phone: parsed.number, phoneSource: source } }, { actor: "AI" }, a.expected_version);
-        return ok({ ...describeOrder(ctx, updated), read_back_digits: digitsForReadBack(parsed.number), instruction: "Read the number back digit by digit and wait for a yes." });
+        const updated = await updateDraft(tx, order.id, { op: "customer", customer: { name: a.name, phone: number, phoneSource: source } }, { actor: "AI" }, a.expected_version);
+        return ok({ ...describeOrder(ctx, updated), read_back_digits: digitsForReadBack(number), instruction: "Read the number back digit by digit and wait for a yes." });
       });
     } catch (e) {
       if (e instanceof OrderRuleError) return refuse(e.code, e.message);

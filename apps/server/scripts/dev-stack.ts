@@ -31,7 +31,8 @@ import { createSquareFactory } from "../src/providers/square-http.ts";
 
 // DEV_DATA_DIR lets the end-to-end tests run a separate copy; DEV_FRESH=1 starts it from the seed every time.
 const DATA = process.env.DEV_DATA_DIR ?? join(import.meta.dirname, "..", ".dev-data");
-if (process.env.DEV_FRESH === "1") rmSync(DATA, { recursive: true, force: true });
+// `npm run dev:fresh` (or DEV_FRESH=1) starts again from the sample data.
+if (process.env.DEV_FRESH === "1" || process.argv.includes("--fresh")) rmSync(DATA, { recursive: true, force: true });
 const PORTS = { pg: Number(process.env.DEV_PG_PORT ?? 54329), auth: Number(process.env.DEV_AUTH_PORT ?? 54321), square: Number(process.env.DEV_SQUARE_PORT ?? 54330), api: Number(process.env.PORT ?? 4000) };
 const DASHBOARD = process.env.DASHBOARD_ORIGIN ?? "http://localhost:3000";
 const SQUARE_TOKENS = { access: "dev-square-access-token", refresh: "dev-square-refresh-token" };
@@ -95,7 +96,9 @@ square.catalog = [...thirdSpaceCatalog(), ...tandoorCrustCatalog()].map((o) => (
 square.acceptAnyToken = true;
 // A second location, so a newly signed-up restaurant has one to claim (the sample café holds the first).
 square.locations.push({ id: "LSAMPLE0000002", name: "Third Space - Second Avenue", status: "ACTIVE", address: { address_line_1: "88 Second Avenue", locality: "New York", administrative_district_level_1: "NY" } });
-square.locations.push({ id: TANDOOR_SQUARE_LOCATION, name: "Tandoor & Crust - Jackson Heights", status: "ACTIVE", address: { address_line_1: "88 Roosevelt Avenue", locality: "Queens", administrative_district_level_1: "NY" } });
+square.locations.push({ id: TANDOOR_SQUARE_LOCATION, name: "Tandoor & Crust - Gulberg", status: "ACTIVE", address: { address_line_1: "24-B Main Boulevard, Gulberg III", locality: "Lahore", administrative_district_level_1: "Punjab" } });
+// Lahore prices in rupees, with Punjab's 16% sales tax on restaurants.
+square.locationPricing.set(TANDOOR_SQUARE_LOCATION, { taxRate: 0.16, currency: "PKR" });
 square.validAccess.add(SQUARE_TOKENS.access);
 square.refreshTokens.set(SQUARE_TOKENS.refresh, SQUARE_TOKENS.access);
 await square.start(PORTS.square);

@@ -4,11 +4,11 @@ import type { CatalogObject } from "../providers/square.ts";
 
 export type Presence = { present_at_all_locations?: boolean; present_at_location_ids?: string[]; absent_at_location_ids?: string[] };
 type Extra = Record<string, unknown>;
-/** [id, name, price in cents, extra fields] for a modifier or a variation. */
+/** [id, name, price in minor units (cents, paisa), extra fields] for a modifier or a variation. */
 export type Option = [string, string, number, Extra?];
 
-export function catalogKit(presence: Presence) {
-  const money = (amount: number) => ({ amount, currency: "USD" });
+export function catalogKit(presence: Presence, currency = "USD") {
+  const money = (amount: number) => ({ amount, currency });
 
   const modifier = (id: string, listId: string, name: string, ordinal: number, price: number, extra: Extra = {}): CatalogObject =>
     ({ type: "MODIFIER", id, version: 1, ...presence, modifier_data: { name, ordinal, price_money: money(price), modifier_list_id: listId, ...extra } });

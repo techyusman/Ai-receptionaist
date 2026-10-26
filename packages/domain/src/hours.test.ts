@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { describeDay, findOverlaps, isOpenAt, localClock, zonedTimeToUtc, type Shift } from "./hours.ts";
-import { formatMoney, maskPhone, prettyPhone, taxOn } from "./money.ts";
+import { formatMoney, taxOn } from "./money.ts";
+import { maskPhone, prettyPhone } from "./phone.ts";
 
 const NY = "America/New_York";
 // Mon–Fri 07:00–15:00, Fri late shift 18:00–01:00, Sat 08:00–16:00. Sunday closed.

@@ -22,6 +22,8 @@ export class SquareStub {
   /** Local development only: accept any token, so a restarted stand-in still knows the café's connection. */
   acceptAnyToken = false;
   taxRate = 0.08875;
+  /** A Square location that prices differently (a sample restaurant in another country): its tax and currency. */
+  locationPricing = new Map<string, { taxRate: number; currency: string }>();
   seq = 0;
   /** Set to an ISO time to make catalog search report only newer objects. */
   merchantId = "MSAMPLE";
@@ -51,6 +53,7 @@ export class SquareStub {
         if (amount !== undefined) byId.set(m.id, amount);
       }
     }
+    const { taxRate, currency } = this.locationPricing.get(String(order.location_id ?? "")) ?? { taxRate: this.taxRate, currency: "USD" };
     let subtotal = 0;
     const lines = (order.line_items as Json[]).map((li) => {
       const base = byId.get(li.catalog_object_id);
@@ -58,10 +61,10 @@ export class SquareStub {
       const mods = ((li.modifiers as Json[]) ?? []).reduce((n, m) => n + (byId.get(m.catalog_object_id) ?? 0) * Number(m.quantity ?? 1), 0);
       const total = (base + mods) * Number(li.quantity);
       subtotal += total;
-      return { ...li, total_money: { amount: total, currency: "USD" } };
+      return { ...li, total_money: { amount: total, currency } };
     });
-    const tax = Math.round(subtotal * this.taxRate);
-    return { ...order, line_items: lines, total_tax_money: { amount: tax, currency: "USD" }, total_money: { amount: subtotal + tax, currency: "USD" }, net_amount_due_money: { amount: subtotal + tax, currency: "USD" } };
+    const tax = Math.round(subtotal * taxRate);
+    return { ...order, line_items: lines, total_tax_money: { amount: tax, currency }, total_money: { amount: subtotal + tax, currency }, net_amount_due_money: { amount: subtotal + tax, currency } };
   }
 
   async #handle(req: IncomingMessage, res: import("node:http").ServerResponse): Promise<void> {

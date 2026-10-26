@@ -11,6 +11,7 @@
     "dev:dashboard": "npm run dev -w apps/dashboard",
     "test": "npm test -w packages/domain && npm test -w packages/db",
     "dev:stack": "npm run dev:stack -w apps/server",
+    "dev:fresh": "npm run dev:fresh -w apps/server",
     "test:server": "npm test -w apps/server",
     "migrate": "npm run migrate -w apps/server",
     "e2e": "npm run build -w apps/dashboard && playwright test -c e2e"

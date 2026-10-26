@@ -1,5 +1,6 @@
 "use client";
 
+import { toE164 as toPhone } from "@receptionist/domain";
 import { Pencil, PhoneForwarded, Plus, Trash } from "lucide-react";
 import { useState } from "react";
 import { deleteTransferTarget, saveTransferTarget, updateSettings } from "@/app/actions/agent";
@@ -25,14 +26,12 @@ const intentLabel = Object.fromEntries(intents.map((i) => [i.value, i.label])) a
 type Draft = Omit<TransferTarget, "id"> & { id?: string };
 const blank: Draft = { label: "", e164: "", priority: 1, intent: "GENERAL", activeHours: "BUSINESS_HOURS", smsAlertOnMiss: true, enabled: true };
 
-function toE164(raw: string): string {
-  const d = raw.replace(/\D/g, "");
-  if (d.length === 10) return `+1${d}`;
-  if (d.length === 11 && d.startsWith("1")) return `+${d}`;
-  return raw.trim().startsWith("+") ? `+${d}` : raw.trim();
+/** As typed in the restaurant's country (0300 1234567 in Pakistan); what can't be read goes to the server to explain. */
+function toE164(raw: string, country: string): string {
+  return toPhone(raw, country) ?? raw.trim();
 }
 
-export function Transfers({ targets, settings }: { targets: TransferTarget[]; settings: Settings }) {
+export function Transfers({ targets, settings, country }: { targets: TransferTarget[]; settings: Settings; country: string }) {
   const [editing, setEditing] = useState<Draft | null>(null);
   const toast = useToast();
   return (
@@ -102,13 +101,13 @@ export function Transfers({ targets, settings }: { targets: TransferTarget[]; se
           </Table>
         )}
       </Card>
-      {editing && <TargetDialog draft={editing} onClose={() => setEditing(null)} />}
+      {editing && <TargetDialog draft={editing} country={country} onClose={() => setEditing(null)} />}
       <Behaviour settings={settings} />
     </div>
   );
 }
 
-function TargetDialog({ draft, onClose }: { draft: Draft; onClose: () => void }) {
+function TargetDialog({ draft, country, onClose }: { draft: Draft; country: string; onClose: () => void }) {
   const [d, setD] = useState({ ...draft, e164: draft.e164 ? prettyPhone(draft.e164) : "" });
   const save = useAction();
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((x) => ({ ...x, [k]: v }));
@@ -126,7 +125,7 @@ function TargetDialog({ draft, onClose }: { draft: Draft; onClose: () => void })
               Cancel
             </Button>
           </DialogClose>
-          <Button loading={save.pending} onClick={() => save.run(() => saveTransferTarget({ ...d, e164: toE164(d.e164) }), { success: "Saved", onDone: onClose })}>
+          <Button loading={save.pending} onClick={() => save.run(() => saveTransferTarget({ ...d, e164: toE164(d.e164, country) }), { success: "Saved", onDone: onClose })}>
             Save
           </Button>
         </>
@@ -137,7 +136,7 @@ function TargetDialog({ draft, onClose }: { draft: Draft; onClose: () => void })
           <Input value={d.label} onChange={(e) => set("label", e.target.value)} maxLength={60} />
         </FormField>
         <FormField label="Phone number" error={save.fieldError("e164")}>
-          <Input value={d.e164} onChange={(e) => set("e164", e.target.value)} inputMode="tel" placeholder="212 555 0142" />
+          <Input value={d.e164} onChange={(e) => set("e164", e.target.value)} inputMode="tel" placeholder={country === "PK" ? "0300 1234567" : "212 555 0142"} />
         </FormField>
         <FormField label="Use it for">
           <Select value={d.intent} onValueChange={(v) => set("intent", v as TransferIntent)} options={intents} />

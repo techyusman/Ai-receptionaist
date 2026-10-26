@@ -7,7 +7,7 @@ export const uuid = z.uuid("That isn't a valid id.");
 
 export const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use 24-hour times like 07:30.");
 export const localDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a date.");
-export const e164 = z.string().regex(/^\+[1-9]\d{6,14}$/, "Use the full number with country code, like +1 212 555 0142.");
+export const e164 = z.string().regex(/^\+[1-9]\d{6,14}$/, "Use the full number with country code, like +1 212 555 0142 or +92 300 1234567.");
 export const isoInstant = z.string().datetime({ offset: true, message: "Use a full date and time." });
 
 export const ianaTimeZone = z.string().refine((tz) => {

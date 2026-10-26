@@ -1,6 +1,6 @@
 // Shared by the order tools: finding or starting the call's order, turning the model's short handles
 // into real menu ids, and describing an order back to the model in words it can read out.
-import { formatMoney, lineTotal, prettyPhone, type Menu, type Order, type OrderLine, type Selection } from "@receptionist/domain";
+import { formatMoney, lineTotal, prettyPhone, readBackDigits, type Menu, type Order, type OrderLine, type Selection } from "@receptionist/domain";
 import { many, maybeOne, type Tx } from "@receptionist/db";
 import type { CallContext } from "../context.ts";
 import { createOrder } from "../../orders/service.ts";
@@ -57,11 +57,7 @@ export function describeOrder(ctx: CallContext, o: Order) {
 }
 
 /** "2 1 2, 5 5 5, 0 1 0 1": digits grouped so they can be read slowly and checked. */
-export function digitsForReadBack(e164: string): string {
-  const d = e164.replace(/^\+1/, "").replace(/\D/g, "");
-  const groups = d.length === 10 ? [d.slice(0, 3), d.slice(3, 6), d.slice(6)] : [d];
-  return groups.map((g) => g.split("").join(" ")).join(", ");
-}
+export const digitsForReadBack = (e164: string): string => readBackDigits(e164);
 
 export async function listLinePrices(tx: Tx, orderId: string) {
   return many<{ line_no: number; line_total_minor: number }>(tx, "select line_no, line_total_minor from order_items where order_id = $1 order by line_no", [orderId]);

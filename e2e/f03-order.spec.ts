@@ -42,7 +42,7 @@ test("F03-H1/F13-H1 a large oat latte from search to the Live orders screen, fla
   expect(await axe(page)).toEqual([]);
   await addLatte(page, "Large", "Oat milk");
   await customer(page, name, "212 555 0101");
-  await expect(page.getByText("The AI reads it back digit by digit: 2 1 2 5 5 5 0 1 0 1.")).toBeVisible();
+  await expect(page.getByText("The AI reads it back digit by digit: 2 1 2, 5 5 5, 0 1 0 1.")).toBeVisible();
   await page.getByRole("button", { name: "Read it back" }).click();
   await expect(page.getByText(/That's 1 large Latte with oat milk\. Your total is \$\d+\.\d\d with tax/)).toBeVisible();
   await expect(page.getByText("Total, paid at pickup")).toBeVisible();

@@ -111,18 +111,22 @@ Open **http://localhost:3000** and sign in. No email is sent locally: the code i
 | `maya@thirdspace.test` | Third Space, a café with a month of history | owner, sees everything |
 | `jordan@thirdspace.test` | Third Space | manager |
 | `sam@thirdspace.test` | Third Space | staff, sees Live orders |
-| `ali@tandoorcrust.test` | Tandoor & Crust, burgers, pizza and Pakistani food, with a bigger menu | owner |
+| `ali@tandoorcrust.test` | Tandoor & Crust in Lahore: burgers, pizza and Pakistani food, priced in rupees | owner |
 | `sara@tandoorcrust.test` | Tandoor & Crust | staff |
 
-Tandoor & Crust's 38 items cover every kind of choice the AI has to ask about: sizes, a required spice
+Tandoor & Crust runs on Pakistan time with +92 numbers, and takes customers' numbers the local way
+(`0300 1234567`). Its 38 items cover every kind of choice the AI has to ask about: sizes, a required spice
 level, crusts, up to five toppings, a meal deal that then asks for a drink, a sold-out size, a sold-out dish
 and a catering tray with no fixed price. Any other address signs up a new restaurant.
+
+Phone numbers are read in each restaurant's own country: `212 555 0101` in New York, `0300 1234567` in
+Pakistan. A number written with `+` and a country code works anywhere.
 
 **Try the core loop:** as Maya, open **AI agent → Test → Start a test call** and order a latte. In a second
 browser window signed in as Sam, watch it arrive on **Live orders**.
 
-**Stop** with Ctrl+C in both terminals. Data is kept between runs in `apps/server/.dev-data`; delete that
-folder to start again from the sample data.
+**Stop** with Ctrl+C in both terminals. Data is kept between runs in `apps/server/.dev-data`. To start again
+from the sample data, run `npm run dev:fresh` instead of `npm run dev:stack` (it wipes that folder first).
 
 ### Chat with the AI (free)
 

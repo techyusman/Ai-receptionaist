@@ -4,6 +4,7 @@ import {
   callerClaim,
   formatMoney,
   lineTotal,
+  readBackDigits,
   rules,
   validateSelection,
   type Menu,
@@ -44,6 +45,8 @@ export function TestAgent(props: {
   order: Order | null;
   aiNumber: string | null;
   currency: string;
+  /** The location's country: the callback number is typed the local way (0300 1234567 in Pakistan). */
+  country: string;
   restaurant: string;
   pickupPolicy: string;
   orderingOn: boolean;
@@ -111,7 +114,7 @@ export function TestAgent(props: {
       ) : (
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           <CallerPanel menu={menu} order={order} now={new Date(props.nowIso)} money={money} pending={pending} act={act} />
-          <OrderPanel order={order} money={money} pending={pending} act={act} restaurant={props.restaurant} pickupPolicy={props.pickupPolicy} />
+          <OrderPanel order={order} money={money} pending={pending} act={act} restaurant={props.restaurant} pickupPolicy={props.pickupPolicy} country={props.country} />
         </div>
       )}
     </div>
@@ -382,6 +385,7 @@ function OrderPanel({
   act,
   restaurant,
   pickupPolicy,
+  country,
 }: {
   order: Order;
   money: (m: number) => string;
@@ -389,6 +393,7 @@ function OrderPanel({
   act: (fn: () => Promise<{ ok: boolean; message?: string }>, done?: () => void) => void;
   restaurant: string;
   pickupPolicy: string;
+  country: string;
 }) {
   const [name, setName] = useState(order.customer.name ?? "");
   const [phone, setPhone] = useState(order.customer.phone ? order.customer.phone.replace(/^\+1/, "") : "");
@@ -456,13 +461,13 @@ function OrderPanel({
           <Input value={name} onChange={(e) => setName(e.target.value)} autoComplete="off" />
         </FormField>
         <FormField label="Callback number">
-          <Input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" autoComplete="off" placeholder="212 555 0123" />
+          <Input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" autoComplete="off" placeholder={country === "PK" ? "0300 1234567" : "212 555 0123"} />
         </FormField>
         <Button type="submit" variant="secondary" disabled={pending}>
           Save
         </Button>
       </form>
-      {order.customer.phone && <p className="-mt-2 text-xs text-muted">The AI reads it back digit by digit: {order.customer.phone.slice(2).split("").join(" ")}.</p>}
+      {order.customer.phone && <p className="-mt-2 text-xs text-muted">The AI reads it back digit by digit: {readBackDigits(order.customer.phone)}.</p>}
 
       {order.totals && order.totals.version === order.version && (
         <dl className="grid grid-cols-2 gap-1 rounded-md bg-surface-muted p-3 text-sm">
