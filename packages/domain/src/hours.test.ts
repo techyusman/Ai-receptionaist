@@ -60,6 +60,10 @@ test("local wall-clock times convert to UTC across DST", () => {
 test("money and phone helpers", () => {
   assert.equal(formatMoney(1840, "USD"), "$18.40");
   assert.equal(formatMoney(500, "JPY"), "¥500");
+  // Rupees are stored in paisa, as Square does, even though rupee prices are usually shown without decimals.
+  assert.equal(formatMoney(179800, "PKR"), "PKR 1,798");
+  assert.equal(formatMoney(65050, "PKR"), "PKR 650.50");
+  assert.equal(formatMoney(1500, "KWD"), "KWD 1.500");
   assert.equal(taxOn(1000, 8.875), 89); // 88.75 rounds half up
   assert.equal(taxOn(400, 8.875), 36); // 35.5 rounds up
   assert.equal(prettyPhone("+15550123456"), "+1 555 012 3456");

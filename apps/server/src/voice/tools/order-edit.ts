@@ -61,7 +61,21 @@ export const updateOrderDraft: ToolDef<typeof editSchema> = {
           const sel = selectionFrom(ctx, { itemId, ...(variationId ? { variationId } : {}), quantity: line ? line.quantity : (a.quantity ?? 1) }, a.choices);
           if ("error" in sel) return refuse("UNKNOWN_CHOICE", sel.error);
           const problems = validateSelection(menu, sel, deps.now());
-          if (problems.length) return { result: { ok: false, reason: "NEEDS_CHOICES", problems: problems.map((p) => p.message), say: "Ask the caller about the missing or invalid choice, then try again." } };
+          if (problems.length) {
+            // The handles to fix it with: without them a model retries with guesses, one paid request at a time.
+            const choicesToFix = [...new Set(problems.flatMap((p) => (p.listId ? [p.listId] : [])))].flatMap((id) => {
+              const list = menu.lists[id];
+              if (!list) return [];
+              const options = list.options.filter((o) => !o.deleted && !o.soldOut).map((o) => ({ option: ctx.handles.for("o", o.id), name: o.name }));
+              return [{ list: ctx.handles.for("l", id), name: list.name, options }];
+            });
+            return {
+              result: {
+                ok: false, reason: "NEEDS_CHOICES", problems: problems.map((p) => p.message), ...(choicesToFix.length ? { choices_to_fix: choicesToFix } : {}),
+                say: "If the caller already said these choices, add them with these handles; otherwise ask about the missing or invalid choice, then try again.",
+              },
+            };
+          }
           const built = toOrderLine(menu, sel);
           change = line ? { op: "modifiers", lineNo: line.lineNo, modifiers: built.modifiers, unitPriceMinor: built.unitPriceMinor } : { op: "add", line: built };
         } else if (a.op === "remove_line") {

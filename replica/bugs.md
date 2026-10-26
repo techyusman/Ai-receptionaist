@@ -22,6 +22,12 @@ test that failed before it and passes after; the test is named under Evidence.
 | BUG-014 | S2 | A deleted account comes back if its still-valid token is used | fixed |
 | BUG-015 | S4 | An error toast sits over the bottom-right of the page until dismissed | open |
 | BUG-016 | S2 | The sign-in page reloads itself forever when the API refuses the saved session | fixed (test not yet run) |
+| BUG-017 | S1 | Rupee prices and totals are 100 times too high everywhere (PKR 179,800 for Rs 1,798) | fixed |
+| BUG-018 | S2 | On a call with no caller ID the AI invents the customer's name and number | fixed |
+| BUG-019 | S1 | The AI answers "yes" for the customer and confirms and sends the order | fixed |
+| BUG-020 | S3 | Stage directions like "(Waiting for response)" are shown and spoken | fixed |
+| BUG-021 | S2 | Order turns on Groq's free tier wait 10-90 s for its per-minute limit | open (limit of the free plan) |
+| BUG-022 | S2 | Under the free limit, the smaller fallback model says an order is ready when it was never sent | open |
 
 ### BUG-001: A dropped database connection crashes the API and worker
 
@@ -371,6 +377,87 @@ Suspected cause: see Actual. Fixed: a 401 goes through `/api/session/expired`, w
 and location cookies before the sign-in page loads, and the proxy drops a session it can't renew on public
 pages too.
 Status: fixed in this commit; run `npm run e2e` (A-E4) once there is disk space to confirm.
+
+### BUG-017: Rupee prices and totals are 100 times too high everywhere
+
+- Severity: S1 (payments wrong: the AI quotes, and the dashboard shows, a total 100 times the real one)
+- Flow / case: M-8, F03 in the Lahore restaurant
+- Screen: test call (AI speech), Live orders, order detail, menu, analytics: everything that shows money
+- Build: 84c28ce  Browser / device: n/a (server and shared helper)
+
+Steps
+1. Call the AI (Tandoor & Crust, Lahore) and order a medium Chicken Tikka Pizza.
+2. Let it price the order.
+
+Expected: "The total is PKR 1,798."
+Actual: "The total is PKR 179,800." Prices are stored in paisa (the minor unit, as Square stores them), but
+`formatMoney` asked Intl how many decimals PKR has, and Intl answers 0 (rupees are usually shown whole).
+Evidence: scripted voice call through the API, run 1. Test: `packages/domain` "money and phone helpers"
+(PKR, KWD cases). Fixed: decimals come from the ISO 4217 minor unit, not from Intl's display habit.
+Status: fixed.
+
+### BUG-018: On a call with no caller ID the AI invents the customer's name and number
+
+- Severity: S2 (an order or a call back goes under a made-up number)
+- Flow / case: M-8 (browser call), and any phone call with a hidden number
+- Build: 84c28ce
+
+Steps
+1. Call the AI from the browser and order a pizza; don't give a name or number yet.
+
+Expected: the AI asks for a name and number.
+Actual: "Your number is +92 300 123 4567. Is that correct?" and set_customer_details was called with it.
+The phone rules said "read the number back", and nothing told the model there was no caller ID.
+Evidence: scripted call runs 1 and 2. Tests: `test/prompt.test.ts`, test-chat "the AI can't save a phone
+number the caller never said". Fixed: the instructions say whether there is caller ID (and which number),
+and the chat refuses (NOT_SAID) a number whose digits the customer never said.
+Status: fixed.
+
+### BUG-019: The AI answers "yes" for the customer and confirms and sends the order
+
+- Severity: S1 (an order is sent that the customer never confirmed)
+- Flow / case: M-8
+- Build: 84c28ce
+
+Steps
+1. On a call, give the order, name and number; confirm the number with "Yes, that's right".
+
+Expected: the AI reads the whole order back, asks "is that all correct?", and waits.
+Actual: "...The total is PKR 1,798. Is that all correct?Yes, that's correct." and the order was confirmed and
+sent in the same turn.
+Evidence: scripted call run 3. Test: test-chat "the AI can't confirm the order for the customer". Fixed: a
+confirmation counts only if the customer has spoken since the order was read back (NOT_ASKED otherwise),
+and a reply that runs on into the customer's answer is cut at the question.
+Status: fixed.
+
+### BUG-020: Stage directions like "(Waiting for response)" are shown and spoken
+
+- Severity: S3
+- Build: 84c28ce
+Actual: "May I have your name, please?(Waiting for response)(Note: awaiting user input)".
+Test: test-chat "stage directions and answers the AI writes for the customer are never shown or spoken".
+Status: fixed.
+
+### BUG-021: Order turns on Groq's free tier wait 10-90 s for its per-minute limit
+
+- Severity: S2 (a caller would hang up)
+- Build: 84c28ce, with the fixes above
+Measured on the owner's key: three chat models, each 8,000 tokens a minute (no prompt caching on this key).
+Every AI step resends about 2,300 tokens of instructions and tool descriptions, and an order turn takes 3 to
+8 steps, so it needs 7,000 to 27,000 tokens: more than a minute's allowance. Turns without waiting take 1.5
+to 3 s (hearing 0.4 to 1.3 s). Done so far: instant fallback to the next model, history trimmed, the cheaper
+gpt-oss-20b before qwen (qwen's format costs about 45% more tokens), a "choices_to_fix" list so a missing
+choice is fixed in one step, and each turn's tokens and waiting shown beside the chat.
+Status: open. Options: Groq's pay-as-you-go plan (much higher limits), or shorter tool descriptions.
+
+### BUG-022: Under the free limit, the smaller fallback model says an order is ready when it was never sent
+
+- Severity: S2
+- Build: with the fixes above, run 5 (the free allowance already used up by earlier runs)
+Actual: after taking the number, gpt-oss-20b said "Your order is ready for pickup. Have a great day!" and
+ended the call. The order was not priced, confirmed or sent (it was correctly marked ABANDONED), but the
+customer was told it was ready.
+Status: open. Seen only with the smaller fallback model while the main one was at its limit.
 
 ## To check (not reproduced)
 

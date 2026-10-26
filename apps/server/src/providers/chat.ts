@@ -8,7 +8,16 @@ export type ChatMessage =
   | { role: "assistant"; content: string | null; tool_calls?: ChatToolCall[] }
   | { role: "tool"; tool_call_id: string; content: string };
 export type ChatTool = { type: "function"; function: { name: string; description: string; parameters: Record<string, unknown> } };
-export type ChatReply = { content: string | null; toolCalls: ChatToolCall[]; /** Which model answered (one of the fallbacks when the main one was busy). */ model?: string };
+export type ChatReply = {
+  content: string | null;
+  toolCalls: ChatToolCall[];
+  /** Which model answered (one of the fallbacks when the main one was busy). */
+  model?: string;
+  /** Tokens the request and answer used, which is what a free tier's per-minute limit counts. */
+  tokens?: number;
+  /** Time spent waiting for a rate limit before any model had room. */
+  waitedMs?: number;
+};
 
 export interface ChatModel {
   /** Shown on the chat screen, e.g. "Groq · openai/gpt-oss-120b". */
@@ -40,10 +49,13 @@ export function waitFrom(headers: Headers): number | null {
   return null;
 }
 
-/** Groq's free models each have their own per-minute allowance; these take over while the main one is busy. */
+/**
+ * Groq's free models each have their own per-minute allowance; these take over while the main one is busy.
+ * gpt-oss-20b first: qwen's request format costs about 45% more tokens for the same tools and messages.
+ */
 export function fallbackModels(baseUrl: string, configured: string | undefined): string[] {
   if (configured) return configured.split(",").map((m) => m.trim()).filter(Boolean);
-  return /api\.groq\.com/.test(baseUrl) ? ["qwen/qwen3.8-27b", "openai/gpt-oss-20b"] : [];
+  return /api\.groq\.com/.test(baseUrl) ? ["openai/gpt-oss-20b", "qwen/qwen3.8-27b"] : [];
 }
 
 export function createChatModel(o: {
@@ -112,9 +124,10 @@ export function createChatModel(o: {
         throw new ChatModelError("unavailable", `Couldn't reach ${label}. Check your internet connection and try again.`);
       }
       if (res.ok) {
-        const j = (await res.json()) as { choices?: { message?: { content?: string | null; tool_calls?: ChatToolCall[] } }[] };
+        const j = (await res.json()) as { choices?: { message?: { content?: string | null; tool_calls?: ChatToolCall[] } }[]; usage?: { total_tokens?: number } };
         const m = j.choices?.[0]?.message ?? {};
-        return { content: m.content ?? null, toolCalls: (m.tool_calls ?? []).filter((c) => c?.function?.name), model };
+        const tokens = j.usage?.total_tokens;
+        return { content: m.content ?? null, toolCalls: (m.tool_calls ?? []).filter((c) => c?.function?.name), model, ...(tokens ? { tokens } : {}), ...(waited ? { waitedMs: waited } : {}) };
       }
       const text = await res.text().catch(() => "");
       if (res.status === 429) {

@@ -447,7 +447,10 @@ export function ChatWindow({
               {timings && (
                 <p className="text-xs text-muted">
                   {timings.modelCalls} AI {timings.modelCalls === 1 ? "step" : "steps"}
-                  {timings.model ? ` on ${timings.model}` : ""}. Your turn ends after 0.7 s of quiet.
+                  {timings.model ? ` on ${timings.model}` : ""}
+                  {timings.tokens ? `, ${timings.tokens.toLocaleString("en-US")} tokens` : ""}.
+                  {timings.waitedMs ? ` ${seconds(timings.waitedMs)} of that was waiting for Groq's free limit (8,000 tokens a minute per model).` : ""} Your
+                  turn ends after 0.7 s of quiet.
                 </p>
               )}
             </Card>

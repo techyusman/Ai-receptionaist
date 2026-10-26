@@ -165,7 +165,7 @@ The model is `openai/gpt-oss-120b` unless you set `CHAT_AI_MODEL` (and `CHAT_AI_
 `whisper-large-v3-turbo` by default). Any OpenAI-compatible service works: set
 `CHAT_AI_BASE_URL` too (for example `https://api.x.ai/v1` for xAI's Grok, which is paid). The free tier has
 per-minute limits, counted per model: when the main model hits one, the next model in
-`CHAT_AI_FALLBACK_MODELS` answers instead (Groq's `qwen/qwen3.8-27b`, then `openai/gpt-oss-20b`, by
+`CHAT_AI_FALLBACK_MODELS` answers instead (Groq's `openai/gpt-oss-20b`, then `qwen/qwen3.8-27b`, by
 default), and only when all of them are at their limit does the chat wait briefly and then ask you to try
 again in a minute.
 

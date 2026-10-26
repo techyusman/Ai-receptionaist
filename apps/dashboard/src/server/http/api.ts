@@ -266,7 +266,7 @@ export type ChatTurn = {
   notice: string | null;
   ended: boolean;
   /** Where the time went: hearing the clip, then the AI's steps until it answered. */
-  timings?: { hearMs?: number; thinkMs: number; modelCalls: number; model?: string };
+  timings?: { hearMs?: number; thinkMs: number; modelCalls: number; model?: string; tokens?: number; waitedMs?: number };
 };
 const chatBase = async () => `/locations/${await loc()}/test-chat`;
 

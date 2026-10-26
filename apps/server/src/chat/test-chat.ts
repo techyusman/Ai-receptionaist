@@ -20,6 +20,7 @@ import { tenant } from "../routes/util.ts";
 import { loadCallContext, type CallContext } from "../voice/context.ts";
 import { buildInstructions, ensureDisclosure } from "../voice/prompt.ts";
 import { TOOLS, runTool } from "../voice/tools/index.ts";
+import type { ToolRun } from "../voice/tools/types.ts";
 import { currentOrder } from "../voice/tools/order-support.ts";
 
 const IDLE_MS = 60 * 60_000;
@@ -39,6 +40,8 @@ type Chat = {
   busy: boolean;
   /** The restaurant's name and dishes, to help speech-to-text spell them. */
   hints?: string;
+  /** How many customer messages there were when the order was last priced and read back. */
+  readBackAt?: number;
 };
 
 export type ChatTurn = {
@@ -50,7 +53,7 @@ export type ChatTurn = {
   notice: string | null;
   ended: boolean;
   /** How long this turn took, to see where the time goes. */
-  timings?: { hearMs?: number; thinkMs: number; modelCalls: number; model?: string };
+  timings?: { hearMs?: number; thinkMs: number; modelCalls: number; model?: string; tokens?: number; waitedMs?: number };
 };
 
 /**
@@ -73,7 +76,15 @@ export const voiceNotConfigured = () =>
   new HttpError(503, "UPSTREAM", "Calling the AI from the browser needs an AI key for hearing speech. Get a free one at console.groq.com/keys, put CHAT_AI_API_KEY=your-key in apps/server/.env.local, and restart the server.");
 
 /** Replies are shown and spoken as plain text: no markdown stars, underscores, code marks or headings. */
-export const plain = (text: string) => text.replace(/\*\*|__|`/g, "").replace(/^#+\s*/gm, "").trim();
+export const plain = (text: string) =>
+  text
+    .replace(/\*\*|__|`/g, "")
+    .replace(/^#+\s*/gm, "")
+    // Stage directions a model sometimes writes after its question; never said out loud.
+    .replace(/\s*\((?:waiting|awaiting|note|pause|silence)\b[^)]*\)/gi, "")
+    // A model that runs on into the customer's answer ("Is that correct?Yes, that's correct.") stops at its question.
+    .replace(/\?(?:Yes|Yeah|Sure|No|Okay|OK)\b[\s\S]*$/, "?")
+    .trim();
 
 /** What Whisper "hears" in silence or noise; never treated as something the customer said. ("Bye" is
  * kept: a customer may really say it to end the call.) */
@@ -84,6 +95,55 @@ export const chatNotConfigured = () =>
 
 /** Long digit runs (phone or card numbers) are masked in what's kept, as on a call. */
 export const redact = (text: string) => text.replace(/\+?\d(?:[\s().-]?\d){6,}/g, (m) => `•••${m.replace(/\D/g, "").slice(-4)}`);
+
+const SPOKEN_DIGITS: Record<string, string> = { zero: "0", oh: "0", one: "1", two: "2", three: "3", four: "4", five: "5", six: "6", seven: "7", eight: "8", nine: "9" };
+/** Every digit the customer has said so far, in order, with "zero three" counted as 03. */
+const digitsSaid = (messages: ChatMessage[]) =>
+  messages
+    .flatMap((m) => (m.role === "user" ? [m.content] : []))
+    .map((text) => text.toLowerCase().replace(/\b(zero|oh|one|two|three|four|five|six|seven|eight|nine)\b/g, (w) => SPOKEN_DIGITS[w]!).replace(/\D/g, ""))
+    .join("");
+
+/**
+ * A model that is told to take the caller's number will sometimes invent a likely one ("0300 1234567")
+ * before the caller has said anything. A number goes on an order or a call back only if the customer
+ * said its digits (the last seven are enough: "0300" and "+92 300" are both fine).
+ */
+function inventedNumber(chat: Chat, tool: string, raw: string): ToolRun | null {
+  if (tool !== "set_customer_details" && tool !== "request_callback") return null;
+  let phone = "";
+  try {
+    phone = String((JSON.parse(raw || "{}") as { phone?: unknown }).phone ?? "");
+  } catch {
+    return null; // the tool itself explains a malformed call
+  }
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length < 7 || digitsSaid(chat.messages).includes(digits.slice(-7))) return null;
+  return {
+    result: { ok: false, reason: "NOT_SAID", say: "The customer hasn't told you this number. Ask for their name and phone number, and never make one up." },
+    note: tool === "request_callback" ? "Callback refused (NOT_SAID)." : "Customer details refused (NOT_SAID).",
+  };
+}
+
+/**
+ * A model that has just read the order back sometimes answers "yes" for the customer and confirms in the
+ * same breath. A confirmation counts only if the customer has said something since the read-back.
+ */
+function confirmedForThem(chat: Chat, tool: string, raw: string): ToolRun | null {
+  if (tool !== "mark_customer_confirmation" || chat.readBackAt === undefined) return null;
+  try {
+    if ((JSON.parse(raw || "{}") as { confirmed?: unknown }).confirmed !== true) return null;
+  } catch {
+    return null;
+  }
+  if (customerTurns(chat) > chat.readBackAt) return null;
+  return {
+    result: { ok: false, reason: "NOT_ASKED", say: "You have just read the order back. Stop here and wait for the customer's answer; never answer for them." },
+    note: "Confirmation refused (NOT_ASKED).",
+  };
+}
+
+const customerTurns = (chat: Chat) => chat.messages.filter((m) => m.role === "user").length;
 
 const chatTools: ChatTool[] = TOOLS.map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.parameters } }));
 
@@ -167,6 +227,8 @@ export class TestChats {
         const reply = await model.complete(forModel(chat.messages), chatTools);
         timings.modelCalls++;
         if (reply.model) timings.model = reply.model;
+        if (reply.tokens) timings.tokens = (timings.tokens ?? 0) + reply.tokens;
+        if (reply.waitedMs) timings.waitedMs = (timings.waitedMs ?? 0) + reply.waitedMs;
         if (!reply.toolCalls.length) {
           const said = plain(reply.content ?? "") || "Sorry, could you say that again?";
           chat.messages.push({ role: "assistant", content: said });
@@ -177,7 +239,9 @@ export class TestChats {
         chat.messages.push({ role: "assistant", content: reply.content ?? null, tool_calls: reply.toolCalls });
         if (reply.content?.trim()) turn.replies.push(plain(reply.content));
         for (const call of reply.toolCalls) {
-          const run = await runTool(this.#deps, chat.ctx, call.function.name, call.function.arguments);
+          const { name, arguments: args } = call.function;
+          const run = inventedNumber(chat, name, args) ?? confirmedForThem(chat, name, args) ?? (await runTool(this.#deps, chat.ctx, name, args));
+          if (name === "calculate_order_total" && run.result.ok !== false) chat.readBackAt = customerTurns(chat);
           if (run.note) turn.steps.push(run.note);
           if (run.effects?.transfer) effect = { ...effect, transferId: run.effects.transfer.transferId };
           if (run.effects?.endCall) effect = { ...effect, endCall: true };

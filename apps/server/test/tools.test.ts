@@ -55,7 +55,11 @@ describe("taking an order the way the model will", () => {
     assert.equal(missing.ok, false);
     assert.equal(missing.reason, "NEEDS_CHOICES");
     assert.match(missing.problems[0], /Milk|choose/i);
+    // The refusal carries the handles to fix it with, so the next try needn't look the item up again.
+    const fix = missing.choices_to_fix.find((c: J) => c.name === "Milk");
+    assert.equal(fix.list, milk.list);
     const oat = milk.options.find((o: J) => o.name === "Oat milk");
+    assert.equal(fix.options.find((o: J) => o.name === "Oat milk")?.option, oat.option);
     const added = await tool(ctx, "update_order_draft", { op: "add_item", item: item.item, variation: small.variation, quantity: 1, choices: [{ list: milk.list, option: oat.option }] });
     assert.equal(added.ok, true);
     assert.deepEqual(added.lines[0].choices, ["Oat milk"]);

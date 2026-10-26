@@ -2,7 +2,7 @@ import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { maybeOne, withSystem } from "@receptionist/db";
 import { buildApp } from "../src/app.ts";
-import { forModel, redact } from "../src/chat/test-chat.ts";
+import { forModel, plain, redact } from "../src/chat/test-chat.ts";
 import { ChatModelError, createChatModel, waitFrom, type ChatMessage, type ChatModel, type ChatReply } from "../src/providers/chat.ts";
 import type { SpeechToText, TextToSpeech } from "../src/providers/speech.ts";
 import { squareReady, type Ready } from "./fixtures.ts";
@@ -161,6 +161,75 @@ describe("the test chat", () => {
     assert.match(row!.provider_call_sid, /^CHAT-/);
     assert.equal(row?.from_e164, null, "a chat has no caller ID");
     assert.equal((await h.call(maya, "POST", `/locations/${r.lid}/test-chat/${chat.chatId}/messages`, { text: "hello?" })).status, 404, "an ended chat is gone");
+  });
+
+  test("the AI can't save a phone number the caller never said; once they say it, even in words, it goes through", async () => {
+    const chat = await start();
+    let first: J, second: J;
+    model.steps = [
+      () => call("set_customer_details", { name: "Customer", phone: "212 555 0199", phone_source: "spoken" }),
+      (m) => {
+        first = lastResult(m);
+        return say("What name and number should I put it under?");
+      },
+    ];
+    const t1 = await send(chat.chatId, "A small latte please");
+    assert.equal(first.ok, false);
+    assert.equal(first.reason, "NOT_SAID");
+    assert.match(first.say, /Ask/);
+    assert.ok(t1.steps.includes("Customer details refused (NOT_SAID)."), t1.steps.join(" | "));
+
+    model.steps = [
+      () => call("request_callback", { name: "Priya", phone: "212 555 0199", consent: true }),
+      (m) => {
+        second = lastResult(m);
+        return say("Thanks, Priya.");
+      },
+    ];
+    await send(chat.chatId, "Priya. Two one two, five five five, zero one nine nine");
+    assert.notEqual(second.reason, "NOT_SAID", JSON.stringify(second));
+  });
+
+  test("the AI can't confirm the order for the customer: a yes counts only if it came after the read-back", async () => {
+    const chat = await start();
+    let latte: J, refused: J, version = 0;
+    model.steps = [
+      () => call("search_menu", { query: "latte" }),
+      (m) => {
+        latte = lastResult(m).matches.find((x: J) => x.name === "Latte");
+        return call("get_item_options", { item: latte.item });
+      },
+      (m) => {
+        const o = lastResult(m);
+        const milk = o.choices.find((c: J) => c.name === "Milk");
+        const small = o.variations.find((v: J) => v.name === "Small");
+        return call("update_order_draft", { op: "add_item", item: latte.item, variation: small.variation, quantity: 1, choices: [{ list: milk.list, option: milk.options[0].option }] });
+      },
+      () => call("set_customer_details", { name: "Priya", phone: "212 555 0101", phone_source: "spoken" }),
+      () => call("calculate_order_total", {}),
+      (m) => {
+        version = lastResult(m).version;
+        return call("mark_customer_confirmation", { version, confirmed: true });
+      },
+      (m) => {
+        refused = lastResult(m);
+        return say("That's one small latte for Priya. Is that all correct?");
+      },
+    ];
+    const t1 = await send(chat.chatId, "A small latte for Priya, 212 555 0101");
+    assert.equal(refused.reason, "NOT_ASKED", JSON.stringify(refused));
+    assert.equal(t1.order.status, "READY_FOR_CONFIRMATION", "not confirmed on the AI's own say-so");
+    assert.ok(t1.steps.includes("Confirmation refused (NOT_ASKED)."), t1.steps.join(" | "));
+
+    model.steps = [() => call("mark_customer_confirmation", { version, confirmed: true }), (m) => say(lastResult(m).ok ? "Great, sending it now." : "Hmm.")];
+    const t2 = await send(chat.chatId, "Yes, that's right");
+    assert.deepEqual(t2.replies, ["Great, sending it now."]);
+  });
+
+  test("stage directions and answers the AI writes for the customer are never shown or spoken", () => {
+    assert.equal(plain("May I have your name, please?(Waiting for response)(Note: awaiting user input)"), "May I have your name, please?");
+    assert.equal(plain("The total is PKR 1,798. Is that all correct?Yes, that's correct."), "The total is PKR 1,798. Is that all correct?");
+    assert.equal(plain("Is that a large (12 inch)? Yes, we have it."), "Is that a large (12 inch)? Yes, we have it.", "ordinary text is left alone");
   });
 
   test("a transfer can't happen in a chat: it's closed, the chat says where a call would have gone, and ends", async () => {
