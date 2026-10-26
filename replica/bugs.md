@@ -21,6 +21,7 @@ test that failed before it and passes after; the test is named under Evidence.
 | BUG-013 | S3 | "Delete my account" shows the error screen when sign-in can't be removed | fixed |
 | BUG-014 | S2 | A deleted account comes back if its still-valid token is used | fixed |
 | BUG-015 | S4 | An error toast sits over the bottom-right of the page until dismissed | open |
+| BUG-016 | S2 | The sign-in page reloads itself forever when the API refuses the saved session | fixed (test not yet run) |
 
 ### BUG-001: A dropped database connection crashes the API and worker
 
@@ -344,6 +345,32 @@ Suspected cause: persistent toasts in the bottom-right corner. This case is fixe
 now shown under Date, like the other same-day conflicts); the general overlap remains. Suggestion: show
 form errors inline wherever the API can name the field, and keep toasts for errors with no place on screen.
 Status: open (workaround: dismiss the toast)
+
+### BUG-016: The sign-in page reloads itself forever when the API refuses the saved session
+
+- Severity: S2 (nobody can sign in on that browser until its cookies are cleared)
+- Flow / case: A-E4
+- Screen: Sign in (S01), and any screen opened with that session
+- Build: 9892d2a  Browser / device: Edge, on the owner's machine
+
+Steps
+1. Sign in to the dashboard.
+2. Make the API refuse that session while the browser still holds it: restart the local stack with
+   `npm run dev:fresh` (new sign-in keys), or delete the account from another device, or rotate keys.
+3. Open the dashboard.
+
+Expected: the sign-in page, once.
+Actual: the sign-in page reloads itself again and again (the owner's dev server log showed an unbroken run
+of `GET /login 200`). The page asks the API who is signed in, the API answers 401, the dashboard redirects
+to the sign-in page, and the dead cookie is still there for the next load.
+Evidence: the owner's dashboard log; the code path (`apiFetch` redirected to /login on 401 without clearing
+the cookie; the proxy kept an unrenewable session on public pages). `A-E1` didn't catch it: it only checked
+that the address ended at /login, which a page stuck reloading also satisfies. New test:
+`e2e/auth.spec.ts` "A-E4 a session the API refuses is cleared" (written; not yet run, the disk is full).
+Suspected cause: see Actual. Fixed: a 401 goes through `/api/session/expired`, which removes the session
+and location cookies before the sign-in page loads, and the proxy drops a session it can't renew on public
+pages too.
+Status: fixed in this commit; run `npm run e2e` (A-E4) once there is disk space to confirm.
 
 ## To check (not reproduced)
 

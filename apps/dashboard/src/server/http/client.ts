@@ -79,7 +79,8 @@ export async function apiFetch<T>(method: string, path: string, opts: FetchOptio
   const body = (await res.json().catch(() => null)) as (T & Partial<ApiErrorBody>) | null;
   if (res.ok) return body as T;
   const err = body?.error;
-  if (res.status === 401) redirect("/login");
+  // The API refused this session: clear the cookie on the way to sign-in, or the sign-in page loops.
+  if (res.status === 401) redirect("/api/session/expired");
   if (res.status === 403) throw new ForbiddenError(err?.message);
   if (res.status === 404) throw new NotFoundError(err?.message ?? "Not found");
   if (res.status >= 400 && res.status < 500) throw new InputError(err?.message ?? "Check the details and try again.", err?.field);

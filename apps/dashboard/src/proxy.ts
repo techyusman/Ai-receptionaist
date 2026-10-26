@@ -23,7 +23,13 @@ export async function proxy(request: NextRequest) {
   if (needsRefresh(session)) {
     const renewed = await refreshSession(session.refresh_token);
     if (!renewed) {
-      if (isPublic) return NextResponse.next();
+      if (isPublic) {
+        // A session that can't be renewed is over: the public page renders signed out, without it.
+        request.cookies.delete(SESSION_COOKIE);
+        const res = NextResponse.next({ request: { headers: request.headers } });
+        res.cookies.delete(SESSION_COOKIE);
+        return res;
+      }
       const res = NextResponse.redirect(new URL("/login", request.url));
       res.cookies.delete(SESSION_COOKIE);
       return res;

@@ -47,6 +47,20 @@ test.describe("sign-in", () => {
     await expect(page).toHaveURL(/\/login/);
   });
 
+  test("A-E4 a session the API refuses is cleared: the sign-in page shows once instead of reloading itself", async ({ page, context }) => {
+    // What happens when the sign-in keys change (a fresh dev stack) or an account is deleted elsewhere.
+    await signIn(page, PEOPLE.owner);
+    const session = (await context.cookies()).find((c) => c.name === "rcpt_session")!;
+    await context.addCookies([{ ...session, value: Buffer.from(JSON.stringify({ access_token: "refused.token.value", refresh_token: "nope", expires_at: 4102444800 })).toString("base64url") }]);
+    let loginLoads = 0;
+    page.on("request", (r) => void (new URL(r.url()).pathname === "/login" && loginLoads++));
+    await page.goto("/calls");
+    await expect(page.getByLabel("Work email")).toBeVisible();
+    await page.waitForTimeout(3000);
+    expect(loginLoads, "the sign-in page loads a few times at most, not in a loop").toBeLessThan(5);
+    expect((await context.cookies()).some((c) => c.name === "rcpt_session"), "the dead session cookie is gone").toBe(false);
+  });
+
   test("A-E2 an expired session is renewed silently by the proxy", async ({ page, context }) => {
     await signIn(page, PEOPLE.owner);
     const session = (await context.cookies()).find((c) => c.name === "rcpt_session")!;
