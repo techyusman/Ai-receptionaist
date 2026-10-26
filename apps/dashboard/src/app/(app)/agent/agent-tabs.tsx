@@ -12,6 +12,7 @@ const tabs = [
   { href: "/agent/voice", label: "Voice" },
   { href: "/agent/phone", label: "Phone number" },
   { href: "/agent/test", label: "Test" },
+  { href: "/agent/chat", label: "Chat test" },
 ];
 
 /** Route-based tabs (S16–S22): each tab is its own URL, so it can be linked and the back button works. */

@@ -21,6 +21,11 @@
   --ds-success-subtle: #e5f5ec;
   --ds-warning: #975300;
   --ds-warning-subtle: #fff3dc;
+  --ds-chat-wallpaper: #ebe5dd;
+  --ds-chat-header: #0b6b5c;
+  --ds-on-chat-header: #ffffff;
+  --ds-chat-in: #ffffff;
+  --ds-chat-out: #d9f4d2;
   --ds-chart-series-1: #2a78d6;
   --ds-chart-series-2: #eb6834;
   --ds-chart-grid: #e7eaee;
@@ -85,6 +90,11 @@
     --ds-success-subtle: #10281c;
     --ds-warning: #f1b555;
     --ds-warning-subtle: #33250d;
+    --ds-chat-wallpaper: #0e1519;
+    --ds-chat-header: #1b2830;
+    --ds-on-chat-header: #e9ecf1;
+    --ds-chat-in: #1c2830;
+    --ds-chat-out: #0b3a33;
     --ds-chart-series-1: #3987e5;
     --ds-chart-series-2: #d95926;
     --ds-chart-grid: #262c36;
@@ -114,6 +124,11 @@
   --ds-success-subtle: #10281c;
   --ds-warning: #f1b555;
   --ds-warning-subtle: #33250d;
+  --ds-chat-wallpaper: #0e1519;
+  --ds-chat-header: #1b2830;
+  --ds-on-chat-header: #e9ecf1;
+  --ds-chat-in: #1c2830;
+  --ds-chat-out: #0b3a33;
   --ds-chart-series-1: #3987e5;
   --ds-chart-series-2: #d95926;
   --ds-chart-grid: #262c36;

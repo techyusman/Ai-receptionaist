@@ -5,8 +5,9 @@ hours, the menu and the place, and hands the call to a person when it should. Ow
 run it from a web dashboard: live orders, call history, the menu the AI offers, its answers, hours and team.
 
 > **Status:** works end to end on your own computer, with stand-ins for the outside services (sign-in,
-> Square, phone and speech). It has not taken a real phone call yet: that needs your own Twilio and OpenAI
-> accounts (see [Connecting real services](#connecting-real-services)). Not deployed anywhere.
+> Square, phone and speech). You can already **chat with the real AI for free** (see
+> [Chat with the AI](#chat-with-the-ai-free)). It has not taken a real phone call yet: that needs your own
+> Twilio and OpenAI accounts (see [Connecting real services](#connecting-real-services)). Not deployed anywhere.
 
 ## What it does
 
@@ -25,8 +26,9 @@ run it from a web dashboard: live orders, call history, the menu the AI offers, 
 - **Calls** and **Orders**: what each caller wanted, how it ended, every step of an order's timeline.
 - **Menu**: what the AI can offer, spoken nicknames, "sold out today", "never offer by phone", resync.
 - **Knowledge**: the AI's answers, with start and end dates and starter questions.
-- **AI agent**: greeting, voice and pronunciations, transfers, where phone orders go, and a **test call**
-  that runs the AI's real steps (test orders are marked "Test call" and never set off kitchen alerts).
+- **AI agent**: greeting, voice and pronunciations, transfers, where phone orders go, a **test call** that
+  runs the AI's real steps, and a **chat test**: text the AI like a customer on WhatsApp (test orders are
+  marked "Test call" and never set off kitchen alerts).
 - **Hours and location**, **Square** connection, **Analytics**, **Team** invitations with roles
   (owner, manager, staff), an **audit log**, and account deletion.
 
@@ -95,7 +97,7 @@ npm install
 Then use two terminals:
 
 ```bash
-# terminal 1: database, API, worker and stand-ins, with a sample café
+# terminal 1: database, API, worker and stand-ins, with two sample restaurants
 npm run dev:stack
 
 # terminal 2, once terminal 1 says "Backend running"
@@ -104,19 +106,43 @@ npm run dev:dashboard
 
 Open **http://localhost:3000** and sign in. No email is sent locally: the code is always **246810**.
 
-| email | role |
-| --- | --- |
-| `maya@thirdspace.test` | owner, sees everything |
-| `jordan@thirdspace.test` | manager |
-| `sam@thirdspace.test` | staff, sees Live orders |
+| email | restaurant | role |
+| --- | --- | --- |
+| `maya@thirdspace.test` | Third Space, a café with a month of history | owner, sees everything |
+| `jordan@thirdspace.test` | Third Space | manager |
+| `sam@thirdspace.test` | Third Space | staff, sees Live orders |
+| `ali@tandoorcrust.test` | Tandoor & Crust, burgers, pizza and Pakistani food, with a bigger menu | owner |
+| `sara@tandoorcrust.test` | Tandoor & Crust | staff |
 
-Any other address signs up a new restaurant.
+Tandoor & Crust's 38 items cover every kind of choice the AI has to ask about: sizes, a required spice
+level, crusts, up to five toppings, a meal deal that then asks for a drink, a sold-out size, a sold-out dish
+and a catering tray with no fixed price. Any other address signs up a new restaurant.
 
 **Try the core loop:** as Maya, open **AI agent → Test → Start a test call** and order a latte. In a second
 browser window signed in as Sam, watch it arrive on **Live orders**.
 
 **Stop** with Ctrl+C in both terminals. Data is kept between runs in `apps/server/.dev-data`; delete that
-folder to start again from the sample café.
+folder to start again from the sample data.
+
+### Chat with the AI (free)
+
+**AI agent → Chat test** is a chat window like WhatsApp: you type as a customer, and the AI answers with the
+same menu, answers and order steps as on a phone call. An order you place there shows up on Live orders,
+marked Test. Beside the chat you see each step the AI took and the order so far.
+
+Without a key, the chat runs on a scripted stand-in that only knows a few keywords. For the real AI, use
+Groq's free tier:
+
+1. Create a free key at [console.groq.com/keys](https://console.groq.com/keys).
+2. Create `apps/server/.env.local` (git-ignored) with:
+   ```
+   CHAT_AI_API_KEY=your-groq-key
+   ```
+3. Restart `npm run dev:stack`.
+
+The model is `openai/gpt-oss-120b` unless you set `CHAT_AI_MODEL`. Any OpenAI-compatible service works: set
+`CHAT_AI_BASE_URL` too (for example `https://api.x.ai/v1` for xAI's Grok, which is paid). The free tier has
+per-minute limits; if you hit one, the chat waits briefly and then tells you to try again in a minute.
 
 Ports used locally: 3000 (dashboard), 4000 (API), 54321 (sign-in stand-in), 54329 (Postgres), 54330
 (Square stand-in).
@@ -140,6 +166,7 @@ Each service is your own account. Templates: [`apps/server/.env.example`](apps/s
 
 | service | settings | needed for |
 | --- | --- | --- |
+| Groq (free tier), or another OpenAI-compatible service | `CHAT_AI_API_KEY` (and optionally `CHAT_AI_BASE_URL`, `CHAT_AI_MODEL`) | the chat test with the real AI |
 | Twilio | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` | real phone numbers and calls |
 | OpenAI | `OPENAI_API_KEY` | the AI's voice on real calls |
 | Square (sandbox, then production) | `SQUARE_APPLICATION_ID_*`, `SQUARE_APPLICATION_SECRET_*`, `SQUARE_WEBHOOK_SIGNATURE_KEY` | your real menu and orders |
@@ -149,8 +176,8 @@ Each service is your own account. Templates: [`apps/server/.env.example`](apps/s
 Twilio must be able to reach the server during a call, so it needs a public HTTPS address
 (`PUBLIC_API_BASE_URL`): a tunnel while testing, or a deployed server.
 
-The server reads its settings from environment variables. The dashboard reads `apps/dashboard/.env.local`.
-**Never commit keys**: `.env*` files are git-ignored.
+The server reads its settings from environment variables and from `apps/server/.env.local`. The dashboard
+reads `apps/dashboard/.env.local`. **Never commit keys**: `.env*` files are git-ignored.
 
 ## Running in production
 

@@ -15,6 +15,7 @@ import { InlineQueue } from "../src/jobs/queue.ts";
 import { LiveBus } from "../src/live.ts";
 import { FakeEmail, FakeRealtime, FakeTwilio } from "../src/providers/fakes.ts";
 import { createSquareFactory } from "../src/providers/square-http.ts";
+import type { ChatModel } from "../src/providers/chat.ts";
 import { SquareStub } from "../src/dev/square-stub.ts";
 
 export const SUPABASE_URL = "https://project.supabase.test";
@@ -42,7 +43,7 @@ export type Harness = {
   stop(): Promise<void>;
 };
 
-export async function startHarness(options: { configure?: (env: Record<string, string>) => void; square?: boolean; realtime?: boolean } = {}): Promise<Harness> {
+export async function startHarness(options: { configure?: (env: Record<string, string>) => void; square?: boolean; realtime?: boolean; chat?: ChatModel } = {}): Promise<Harness> {
   const td = await startTestDatabase();
   const { publicKey, privateKey } = await generateKeyPair("ES256");
   const jwk = { ...(await exportJWK(publicKey)), kid: "test-key", alg: "ES256", use: "sig" };
@@ -76,6 +77,7 @@ export async function startHarness(options: { configure?: (env: Record<string, s
     providers: {
       email, twilio,
       realtime,
+      chat: options.chat ?? null,
       square: square
         ? createSquareFactory({ apiVersion: config.SQUARE_API_VERSION, credentials: { SANDBOX: { applicationId: "sq0idp-test", applicationSecret: "sq0csp-test" } }, baseUrls: { SANDBOX: square.url, PRODUCTION: square.url }, timeoutMs: 3000, orderTimeoutMs: 1500 })
         : null,

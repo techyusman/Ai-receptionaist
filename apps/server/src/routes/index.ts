@@ -20,6 +20,7 @@ import { registerSetupRoutes } from "./setup.ts";
 import { registerSquareRoutes } from "./square.ts";
 import { registerTeamRoutes } from "./team.ts";
 import { registerTestAgentRoutes } from "./test-agent.ts";
+import { registerTestChatRoutes } from "./test-chat.ts";
 
 export async function registerRoutes(api: FastifyInstance, deps: Deps): Promise<void> {
   registerMeRoutes(api, deps);
@@ -41,5 +42,6 @@ export async function registerRoutes(api: FastifyInstance, deps: Deps): Promise<
   registerSetupRoutes(api, deps);
   registerSquareRoutes(api, deps);
   registerTestAgentRoutes(api, deps);
+  registerTestChatRoutes(api, deps);
   registerLiveRoutes(api, deps);
 }

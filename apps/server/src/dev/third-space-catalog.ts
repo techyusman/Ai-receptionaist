@@ -1,43 +1,13 @@
 // A small Square-shaped catalog for the sample restaurant (Third Space). Used by the seed script and
 // by tests, and it goes through the same parse and apply code a real sync uses. All names invented.
 import type { CatalogObject } from "../providers/square.ts";
+import { catalogKit } from "./catalog-kit.ts";
+import { TANDOOR_SQUARE_LOCATION } from "./tandoor-crust-catalog.ts";
 
 export const SAMPLE_SQUARE_LOCATION = "LSAMPLE0000001";
 
-const everywhere = { present_at_all_locations: true } as const;
-const money = (amount: number) => ({ amount, currency: "USD" });
-
-function modifier(id: string, listId: string, name: string, ordinal: number, price: number, extra: Record<string, unknown> = {}): CatalogObject {
-  return { type: "MODIFIER", id, version: 1, ...everywhere, modifier_data: { name, ordinal, price_money: money(price), modifier_list_id: listId, ...extra } };
-}
-
-function list(id: string, name: string, type: "SINGLE" | "MULTIPLE", min: number, max: number, mods: [string, string, number, Record<string, unknown>?][]): CatalogObject {
-  return {
-    type: "MODIFIER_LIST", id, version: 1, ...everywhere,
-    modifier_list_data: {
-      name, selection_type: type, min_selected_modifiers: min, max_selected_modifiers: max,
-      modifiers: mods.map(([mid, mname, price, extra], i) => modifier(mid, id, mname, i, price, extra)),
-    },
-  };
-}
-
-function variation(id: string, itemId: string, name: string, ordinal: number, price: number, extra: Record<string, unknown> = {}): CatalogObject {
-  return { type: "ITEM_VARIATION", id, version: 1, ...everywhere, item_variation_data: { item_id: itemId, name, ordinal, pricing_type: "FIXED_PRICING", price_money: money(price), ...extra } };
-}
-
-function item(id: string, name: string, category: string, description: string, variations: [string, string, number, Record<string, unknown>?][], lists: string[], extra: Record<string, unknown> = {}): CatalogObject {
-  return {
-    type: "ITEM", id, version: 1, ...everywhere,
-    item_data: {
-      name, description, category_id: category, product_type: "REGULAR",
-      variations: variations.map(([vid, vname, price, vextra], i) => variation(vid, id, vname, i, price, vextra)),
-      modifier_list_info: lists.map((l) => ({ modifier_list_id: l, enabled: true })),
-      ...extra,
-    },
-  };
-}
-
-const category = (id: string, name: string, ordinal: number): CatalogObject => ({ type: "CATEGORY", id, version: 1, ...everywhere, category_data: { name, ordinal } });
+// Sold at every location of the Square stand-in except the second sample restaurant's.
+const { item, list, category } = catalogKit({ present_at_all_locations: true, absent_at_location_ids: [TANDOOR_SQUARE_LOCATION] });
 
 export function thirdSpaceCatalog(loc = SAMPLE_SQUARE_LOCATION): CatalogObject[] {
   const soldOut = { location_overrides: [{ location_id: loc, sold_out: true }] };

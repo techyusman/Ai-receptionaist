@@ -5,9 +5,9 @@
   "type": "module",
   "description": "The API, the Twilio and Square webhooks, the voice gateway and the background worker.",
   "scripts": {
-    "start": "node src/main.ts",
-    "worker": "node src/worker.ts",
-    "dev:stack": "node scripts/dev-stack.ts",
+    "start": "node --env-file-if-exists=.env.local src/main.ts",
+    "worker": "node --env-file-if-exists=.env.local src/worker.ts",
+    "dev:stack": "node --env-file-if-exists=.env.local scripts/dev-stack.ts",
     "migrate": "node scripts/migrate.ts",
     "test": "node --test --test-concurrency=1 \"test/**/*.test.ts\"",
     "typecheck": "tsc --noEmit -p ."

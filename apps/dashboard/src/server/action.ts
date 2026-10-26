@@ -13,12 +13,13 @@ export type { ActionResult };
 /**
  * Runs a mutation for a Server Action: refreshes the page on success and turns expected failures
  * (bad input, no permission, an order rule) into a message for the form. Next's own redirect and
- * not-found signals pass through untouched.
+ * not-found signals pass through untouched. `refresh: false` for actions whose screen keeps its own
+ * state (the test chat), so a message doesn't re-render the whole page.
  */
-export async function run<T>(fn: () => Promise<T>): Promise<ActionResult<T>> {
+export async function run<T>(fn: () => Promise<T>, opts: { refresh?: boolean } = {}): Promise<ActionResult<T>> {
   try {
     const data = await fn();
-    refresh();
+    if (opts.refresh !== false) refresh();
     return { ok: true, data };
   } catch (e) {
     unstable_rethrow(e);

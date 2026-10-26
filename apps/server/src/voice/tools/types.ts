@@ -11,7 +11,7 @@ export type ToolEffects = {
   endCall?: boolean;
 };
 
-export type ToolRun = { result: ToolResult; effects?: ToolEffects };
+export type ToolRun = { result: ToolResult; effects?: ToolEffects; /** The sentence written to the call's timeline. */ note?: string };
 
 export type ToolDef<S extends z.ZodType = z.ZodType> = {
   name: string;

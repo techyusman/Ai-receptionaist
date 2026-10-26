@@ -16,13 +16,17 @@ import { keyringFrom, TokenCipher } from "../src/crypto.ts";
 import type { Deps } from "../src/deps.ts";
 import { AuthStub, newAuthKeys, type AuthStubKeys } from "../src/dev/auth-stub.ts";
 import { seedThirdSpace, SEED_PEOPLE } from "../src/dev/seed.ts";
+import { seedTandoorCrust, TANDOOR_PEOPLE } from "../src/dev/seed-tandoor.ts";
+import { TANDOOR_SQUARE_LOCATION, tandoorCrustCatalog } from "../src/dev/tandoor-crust-catalog.ts";
 import { SquareStub } from "../src/dev/square-stub.ts";
 import { thirdSpaceCatalog } from "../src/dev/third-space-catalog.ts";
 import { buildHandlers } from "../src/jobs/handlers.ts";
 import { grantQueueAccess, PgBossQueue } from "../src/jobs/pgboss.ts";
 import { LiveBus } from "../src/live.ts";
 import { FakeTwilio } from "../src/providers/fakes.ts";
+import { createChatModel } from "../src/providers/chat.ts";
 import { createOpenAiRealtime } from "../src/providers/realtime-openai.ts";
+import { ScriptedChatModel } from "../src/dev/chat-stub.ts";
 import { createSquareFactory } from "../src/providers/square-http.ts";
 
 // DEV_DATA_DIR lets the end-to-end tests run a separate copy; DEV_FRESH=1 starts it from the seed every time.
@@ -83,13 +87,15 @@ await install.install();
 await install.stop();
 await grantQueueAccess(admin);
 
-const auth = new AuthStub(secrets.auth, Object.fromEntries(SEED_PEOPLE.map((p) => [p.email, p.name])));
+const auth = new AuthStub(secrets.auth, Object.fromEntries([...SEED_PEOPLE, ...TANDOOR_PEOPLE].map((p) => [p.email, p.name])));
 await auth.start(PORTS.auth);
 const square = new SquareStub();
-square.catalog = thirdSpaceCatalog().map((o) => ({ ...o, updated_at: "2026-10-01T00:00:00Z" }));
+// Both sample restaurants share the stand-in; each Square location sees only its own menu.
+square.catalog = [...thirdSpaceCatalog(), ...tandoorCrustCatalog()].map((o) => ({ ...o, updated_at: "2026-10-01T00:00:00Z" }));
 square.acceptAnyToken = true;
 // A second location, so a newly signed-up restaurant has one to claim (the sample café holds the first).
 square.locations.push({ id: "LSAMPLE0000002", name: "Third Space - Second Avenue", status: "ACTIVE", address: { address_line_1: "88 Second Avenue", locality: "New York", administrative_district_level_1: "NY" } });
+square.locations.push({ id: TANDOOR_SQUARE_LOCATION, name: "Tandoor & Crust - Jackson Heights", status: "ACTIVE", address: { address_line_1: "88 Roosevelt Avenue", locality: "Queens", administrative_district_level_1: "NY" } });
 square.validAccess.add(SQUARE_TOKENS.access);
 square.refreshTokens.set(SQUARE_TOKENS.refresh, SQUARE_TOKENS.access);
 await square.start(PORTS.square);
@@ -113,6 +119,7 @@ const config = loadConfig({
 
 const cipher = new TokenCipher(keyringFrom(config));
 const seeded = await seedThirdSpace(admin, { cipher, squareTokens: SQUARE_TOKENS });
+const tandoor = await seedTandoorCrust(admin, { cipher, squareTokens: SQUARE_TOKENS });
 
 /** Texts and emails are printed, so invite links and alerts can be followed by hand. */
 class PrintingTwilio extends FakeTwilio {
@@ -141,6 +148,10 @@ const deps: Deps = {
     twilio: new PrintingTwilio(),
     square: createSquareFactory({ apiVersion: config.SQUARE_API_VERSION, credentials: { SANDBOX: { applicationId: "sq0idp-dev", applicationSecret: "sq0csp-dev" } }, baseUrls: { SANDBOX: square.url, PRODUCTION: square.url } }),
     realtime: config.OPENAI_API_KEY ? createOpenAiRealtime({ apiKey: config.OPENAI_API_KEY, model: config.OPENAI_REALTIME_MODEL }) : null,
+    // The test chat: your own key if you set one (apps/server/.env.local), otherwise a scripted stand-in.
+    chat: config.CHAT_AI_API_KEY
+      ? createChatModel({ baseUrl: config.CHAT_AI_BASE_URL, apiKey: config.CHAT_AI_API_KEY, model: config.CHAT_AI_MODEL })
+      : new ScriptedChatModel(),
   },
   now: () => new Date(),
 };
@@ -155,11 +166,13 @@ Backend running (development).
   Square       ${square.url}   (a stand-in for the sandbox; "connect" goes straight through)
   Postgres     ${dbUrl}
   Sample café  ${seeded.created ? "created" : "already there"} (restaurant ${seeded.restaurantId})
+  Tandoor & Crust  ${tandoor.created ? "created" : "already there"} (a second restaurant with a bigger menu)
 
 Run the dashboard against it (in another terminal):
   npm run dev:dashboard          then open http://localhost:3000
   (its settings for this stack are in apps/dashboard/.env.development)
-Then sign in as ${SEED_PEOPLE.map((p) => `${p.email} (${p.role.toLowerCase()})`).join(", ")}.
+Then sign in as ${SEED_PEOPLE.map((p) => `${p.email} (${p.role.toLowerCase()})`).join(", ")},
+or for Tandoor & Crust ${TANDOOR_PEOPLE.map((p) => `${p.email} (${p.role.toLowerCase()})`).join(", ")}.
 `);
 
 async function stop() {

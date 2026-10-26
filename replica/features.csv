@@ -120,3 +120,4 @@ Drive-thru unit and kiosk,hardware,could,yes,skip,hardware
 StreamOrders relay,integrations,could,yes,skip,partner deal; clone talks to Square directly
 Maple call dataset and tuned models,data,could,yes,skip,data the app owns
 Printer hardware supply,hardware,could,yes,skip,keep the fallback idea; not the hardware
+Text the AI like a customer in a chat (WhatsApp-style test),testing,should,no,yes,"S22b; built: AI agent > Chat test runs the phone AI's tools and rules through any OpenAI-compatible text model (Groq free tier by default); a scripted stand-in without a key"

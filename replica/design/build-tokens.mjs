@@ -16,6 +16,8 @@ const tailwindName = {
   'accent-hover': 'accent-hover', 'accent-subtle': 'accent-subtle', 'on-accent': 'on-accent',
   focus: 'focus', danger: 'danger', 'danger-subtle': 'danger-subtle', 'on-danger': 'on-danger',
   success: 'success', 'success-subtle': 'success-subtle', warning: 'warning', 'warning-subtle': 'warning-subtle',
+  // The test chat screen, drawn like a phone messaging app.
+  'chat-wallpaper': 'chat-wallpaper', 'chat-header': 'chat-header', 'on-chat-header': 'on-chat-header', 'chat-in': 'chat-in', 'chat-out': 'chat-out',
 };
 const roles = Object.keys(t.color.light);
 for (const r of roles) {

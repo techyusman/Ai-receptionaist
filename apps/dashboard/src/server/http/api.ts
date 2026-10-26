@@ -257,6 +257,24 @@ export async function getTestOrder(orderId: string): Promise<Order | null> {
   return orNull(get<Order>(`${await testBase()}/orders/${orderId}`));
 }
 
+/* The test chat (S22b): texting the AI through the same tools as a call -------------------------- */
+
+export type ChatTurn = { replies: string[]; steps: string[]; order: OrderSummary | null; notice: string | null; ended: boolean };
+const chatBase = async () => `/locations/${await loc()}/test-chat`;
+
+export async function getTestChatStatus(): Promise<{ configured: boolean; model: string | null }> {
+  return get(await chatBase());
+}
+export async function startTestChat(): Promise<{ chatId: string; greeting: string; model: string }> {
+  return post(await chatBase());
+}
+export async function sendTestChat(chatId: string, text: string): Promise<ChatTurn> {
+  return post(`${await chatBase()}/${chatId}/messages`, { text });
+}
+export async function endTestChat(chatId: string): Promise<void> {
+  await post(`${await chatBase()}/${chatId}/end`);
+}
+
 /* Joining and signing up (no restaurant chosen yet, so these don't use the session) -------------- */
 
 export async function acceptInvitation(token: string): Promise<{ restaurantId: string; locationId: string | null }> {

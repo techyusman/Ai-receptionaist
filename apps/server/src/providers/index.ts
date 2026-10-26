@@ -1,6 +1,7 @@
 // The outside world, behind small interfaces. Production wires real clients (Twilio, Square, OpenAI,
 // Resend); development and tests wire fakes. A provider that isn't configured is simply absent, and
 // the routes that need it answer "isn't set up on this server yet".
+import type { ChatModel } from "./chat.ts";
 import type { EmailSender } from "./email.ts";
 import type { RealtimeConnector } from "./realtime.ts";
 import type { SquareApiFactory } from "./square.ts";
@@ -11,4 +12,6 @@ export type Providers = {
   twilio: TwilioApi | null;
   square: SquareApiFactory | null;
   realtime: RealtimeConnector | null;
+  /** The text model behind the dashboard's test chat. */
+  chat: ChatModel | null;
 };

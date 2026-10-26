@@ -40,6 +40,8 @@ export default defineConfig({
         DEV_SQUARE_PORT: String(E2E.ports.square),
         PORT: String(E2E.ports.api),
         DASHBOARD_ORIGIN: E2E.web,
+        // The test chat always runs on the scripted stand-in here, never on a real key from your shell.
+        CHAT_AI_API_KEY: "",
       },
     },
     {

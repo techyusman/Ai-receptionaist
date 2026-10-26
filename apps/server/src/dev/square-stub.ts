@@ -39,9 +39,17 @@ export class SquareStub {
 
   #price(order: Json): Json {
     const byId = new Map<string, number>();
+    // A variable-priced item (a catering tray) has no price_money; it just isn't in the price list.
+    const priceOf = (m: unknown) => (m as { amount?: number } | undefined)?.amount;
     for (const o of this.catalog) {
-      if (o.type === "ITEM") for (const v of ((o.item_data?.variations as CatalogObject[]) ?? [])) byId.set(v.id, (v.item_variation_data?.price_money as { amount: number }).amount);
-      if (o.type === "MODIFIER_LIST") for (const m of ((o.modifier_list_data?.modifiers as CatalogObject[]) ?? [])) byId.set(m.id, (m.modifier_data?.price_money as { amount: number }).amount);
+      if (o.type === "ITEM") for (const v of ((o.item_data?.variations as CatalogObject[]) ?? [])) {
+        const amount = priceOf(v.item_variation_data?.price_money);
+        if (amount !== undefined) byId.set(v.id, amount);
+      }
+      if (o.type === "MODIFIER_LIST") for (const m of ((o.modifier_list_data?.modifiers as CatalogObject[]) ?? [])) {
+        const amount = priceOf(m.modifier_data?.price_money);
+        if (amount !== undefined) byId.set(m.id, amount);
+      }
     }
     let subtotal = 0;
     const lines = (order.line_items as Json[]).map((li) => {

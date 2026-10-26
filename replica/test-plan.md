@@ -10,9 +10,9 @@ Where a case runs:
   is no screen to click, so the tools, webhooks and gateway are driven directly.
 - **manual** needs your real accounts (Square, Twilio, OpenAI, Supabase, Resend); checklist at the end.
 
-Results are from the run on 2026-10-24 (`npm run e2e`, `npm test`, `npm run test:server`).
+Results are from the run on 2026-10-26 (`npm run e2e`, `npm test`, `npm run test:server`).
 
-Summary: 106 automated cases, 106 pass (58 browser tests in `e2e/`, 174 server, domain and database tests).
+Summary: 115 automated cases, 115 pass (61 browser tests in `e2e/`, 188 server, domain and database tests).
 The 7 manual cases (M-1 to M-7) need real Square, Twilio, OpenAI, Supabase and Resend accounts and have not
 been run. 15 bugs were found on the way; see `replica/bugs.md`.
 
@@ -160,6 +160,20 @@ been run. 15 bugs were found on the way; see `replica/bugs.md`.
 | F14-E3 | edge: invite revoked | the owner cancels the invite, the person accepts | refused | e2e | pass |
 | F14-N1 | negative: invalid email | "not-an-email" | field message | e2e | pass |
 | F14-N2 | negative: permission | a manager tries to invite | not offered; the API refuses | e2e + server `tenancy.test` | pass |
+
+## F15 Text the AI like a customer (chat test), and the bigger sample menu
+
+| case | type | steps | expected | auto | result |
+| --- | --- | --- | --- | --- | --- |
+| F15-H1 | happy | Tandoor & Crust owner: start a chat, ask the hours, search "biryani", ask if the meat is halal, end the chat | greeting; answers from the real tools; each step listed; the chat is a test call in Calls | e2e | pass |
+| F15-H2 | happy | a whole pickup order by chat (search, choices, name and number, total, yes, send) | the same tools and rules as a phone call; the order is a test on Live orders | server `test-chat.test` | pass |
+| F15-E1 | edge: mobile width | the chat at 390 px | no sideways scrolling, every control reachable | e2e | pass |
+| F15-E2 | edge: transfer | the customer asks for a person | the chat says where a call would have gone and ends; nothing is left ringing | server `test-chat.test` | pass |
+| F15-E3 | edge: the free AI is busy | the model is rate limited or fails | a short wait, then "try again in a minute"; the chat stays open | server `test-chat.test` | pass |
+| F15-E4 | edge: numbers in the transcript | a phone or card number in a message | masked to the last four digits in what is kept | server `test-chat.test` | pass |
+| F15-E5 | edge: the bigger menu | spice level required, meal deal asks for a drink, at most five toppings, sold-out size and dish, a tray with no fixed price | each enforced; the sold-out and unpriced never offered; none of the café's items | server `sample-menu.test` + e2e | pass |
+| F15-N1 | negative: permission | staff open the chat; a manager writes into the owner's chat; another restaurant uses the chat's id | refused | server `test-chat.test` + e2e | pass |
+| F15-N2 | negative: no key | the server has no chat model | explains how to add a free key | server `test-chat.test` | pass |
 
 ## Cross-cutting (X)
 

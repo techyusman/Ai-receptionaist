@@ -63,6 +63,7 @@ export async function runTool(deps: Deps, ctx: CallContext, name: string, raw: u
   }
   const ms = Date.now() - started;
   const describe = LOG[name];
-  await withSystem(deps.db, (tx) => addEvent(tx, ctx.callId, ctx.restaurantId, `tool.${name}`, "AI", describe ? describe(parsed.data as Record<string, any>, run.result) : name, { ms })).catch(() => undefined);
-  return run;
+  const note = describe ? describe(parsed.data as Record<string, any>, run.result) : name;
+  await withSystem(deps.db, (tx) => addEvent(tx, ctx.callId, ctx.restaurantId, `tool.${name}`, "AI", note, { ms })).catch(() => undefined);
+  return { ...run, note };
 }

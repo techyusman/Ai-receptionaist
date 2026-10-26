@@ -50,6 +50,11 @@ const schema = z.object({
   OPENAI_REALTIME_MODEL: z.string().default("gpt-realtime"),
   OPENAI_REALTIME_URL: z.string().default("wss://api.openai.com/v1/realtime"),
 
+  // The dashboard's test chat: any OpenAI-compatible text model. Groq has a free tier (console.groq.com/keys).
+  CHAT_AI_API_KEY: optionalString,
+  CHAT_AI_BASE_URL: z.string().default("https://api.groq.com/openai/v1"),
+  CHAT_AI_MODEL: z.string().default("openai/gpt-oss-120b"),
+
   SQUARE_API_VERSION: z.string().default("2026-08-19"),
   SQUARE_APPLICATION_ID_SANDBOX: optionalString,
   SQUARE_APPLICATION_SECRET_SANDBOX: optionalString,

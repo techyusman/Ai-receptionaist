@@ -197,6 +197,7 @@ export const supportGrantInput = z.object({
 /* Test agent (S22) -------------------------------------------------------------------------- */
 
 export const testSearchQuery = z.object({ q: z.string().trim().min(1).max(80) });
+export const testChatMessageInput = z.object({ text: z.string().trim().min(1, "Type a message first.").max(500, "Keep a message under 500 characters.") });
 export const testLineInput = z.object({
   itemId: uuid,
   variationId: uuid.optional(),

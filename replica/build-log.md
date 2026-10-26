@@ -37,4 +37,5 @@ data layer is the in-memory fake (`apps/dashboard/src/server/fake`) until `/repl
 | S04 | 2026-10-22 | partial | One-sitting wizard UI; today it's a checklist that opens each real screen | S07 (KYC) and S08 (card on file) dropped: no payments. |
 | S27 | 2026-10-22 | done | Usage and cost per tenant | Chart colours validated with the dataviz validator against our surfaces; deltas hidden when the previous period has no data. |
 | S16 | 2026-10-22 | done | – | One agent per location, so the agent “list” is the tabbed editor. |
+| S22b chat test | 2026-10-26 | done | A voice version in the browser (needs Twilio) | The chat runs the phone AI's own tools and rules through a text model (Groq free tier by default), so it tests the real thing; a free tier's per-minute limits are waited out, then explained. Transfers can't happen in a chat, so it says where a call would have gone. |
 | S34–S38, S40 | – | not started | The voice agent (Twilio + Realtime) and SMS are backend work: /replica-backend | – |

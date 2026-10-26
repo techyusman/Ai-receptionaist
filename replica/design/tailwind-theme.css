@@ -25,6 +25,11 @@
   --color-success-subtle: var(--ds-success-subtle);
   --color-warning: var(--ds-warning);
   --color-warning-subtle: var(--ds-warning-subtle);
+  --color-chat-wallpaper: var(--ds-chat-wallpaper);
+  --color-chat-header: var(--ds-chat-header);
+  --color-on-chat-header: var(--ds-on-chat-header);
+  --color-chat-in: var(--ds-chat-in);
+  --color-chat-out: var(--ds-chat-out);
 
   --font-sans: var(--ds-font-sans);
   --font-mono: var(--ds-font-mono);
