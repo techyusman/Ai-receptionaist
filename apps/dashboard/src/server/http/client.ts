@@ -43,17 +43,31 @@ function apiBase(): string {
 
 type Query = Record<string, string | number | boolean | null | undefined>;
 
-export async function apiFetch<T>(method: string, path: string, opts: { body?: unknown; query?: Query; token?: string; retried?: boolean } = {}): Promise<T> {
+type FetchOptions = {
+  body?: unknown;
+  /** Bytes sent as they are (a recording), with their media type, instead of a JSON body. */
+  raw?: { data: Uint8Array; type: string };
+  query?: Query;
+  token?: string;
+  retried?: boolean;
+  /** Longer for the test chat, whose model may wait out a free tier's rate limit. */
+  timeoutMs?: number;
+};
+
+export async function apiFetch<T>(method: string, path: string, opts: FetchOptions = {}): Promise<T> {
   const token = opts.token ?? (await getAuth())?.access_token;
   if (!token) redirect("/login");
   const url = new URL(`${apiBase()}/api/v1${path}`);
   for (const [k, v] of Object.entries(opts.query ?? {})) if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, String(v));
   const res = await fetch(url, {
     method,
-    headers: { authorization: `Bearer ${token}`, ...(opts.body !== undefined ? { "content-type": "application/json" } : {}) },
-    body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
+    headers: {
+      authorization: `Bearer ${token}`,
+      ...(opts.raw ? { "content-type": opts.raw.type } : opts.body !== undefined ? { "content-type": "application/json" } : {}),
+    },
+    body: opts.raw ? (opts.raw.data as BodyInit) : opts.body === undefined ? undefined : JSON.stringify(opts.body),
     cache: "no-store",
-    signal: AbortSignal.timeout(20_000),
+    signal: AbortSignal.timeout(opts.timeoutMs ?? 20_000),
   });
   if (res.status === 429 && method === "GET" && !opts.retried) {
     // Busy for a moment (a rush on a login shared by several screens): wait as told, briefly, and read again.

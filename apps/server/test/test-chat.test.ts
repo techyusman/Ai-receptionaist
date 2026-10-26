@@ -4,6 +4,7 @@ import { maybeOne, withSystem } from "@receptionist/db";
 import { buildApp } from "../src/app.ts";
 import { redact } from "../src/chat/test-chat.ts";
 import { ChatModelError, createChatModel, waitFrom, type ChatMessage, type ChatModel, type ChatReply } from "../src/providers/chat.ts";
+import type { SpeechToText } from "../src/providers/speech.ts";
 import { squareReady, type Ready } from "./fixtures.ts";
 import { newUser, signUp, startHarness, type Harness, type TestUser } from "./harness.ts";
 
@@ -34,9 +35,21 @@ const call = (name: string, args: Record<string, unknown>): ChatReply => ({ cont
 const say = (content: string): ChatReply => ({ content, toolCalls: [] });
 const lastResult = (m: ChatMessage[]): J => JSON.parse((m.at(-1) as { content: string }).content);
 
+/** Hears whatever the test says was said, and keeps what it was given. */
+class FakeEars implements SpeechToText {
+  readonly label = "Ears";
+  next = "";
+  got: { bytes: number; mimeType: string; hints?: string }[] = [];
+  async transcribe(audio: Uint8Array, mimeType: string, hints?: string) {
+    this.got.push({ bytes: audio.length, mimeType, hints });
+    return this.next;
+  }
+}
+
 let h: Harness;
 let r: Ready;
 const model = new ScriptModel();
+const ears = new FakeEars();
 const maya = newUser("Maya Owner");
 const sam = newUser("Sam Staff");
 const jordan = newUser("Jordan Manager");
@@ -48,7 +61,7 @@ async function join(who: TestUser, role: "MANAGER" | "STAFF") {
 }
 
 before(async () => {
-  h = await startHarness({ square: true, chat: model });
+  h = await startHarness({ square: true, chat: model, stt: ears });
   r = await squareReady(h, maya, "Chat Cafe", "DASHBOARD_TICKET");
   await h.call(maya, "PATCH", `/locations/${r.lid}/settings`, { orderingEnabled: true, transcriptEnabled: true });
   await join(sam, "STAFF");
@@ -178,13 +191,61 @@ describe("the test chat", () => {
     await bare.close();
     assert.equal(res.statusCode, 503);
     assert.match(JSON.parse(res.body).error.message, /console\.groq\.com\/keys/);
-    assert.deepEqual(JSON.parse(status.body), { configured: false, model: null });
+    assert.deepEqual(JSON.parse(status.body), { configured: false, model: null, voice: true });
   });
 
   test("numbers are masked in what's kept", () => {
     assert.equal(redact("Priya, 212 555 0101"), "Priya, •••0101");
     assert.equal(redact("card 4242 4242 4242 4242 please"), "card •••4242 please");
     assert.equal(redact("2 large pizzas"), "2 large pizzas");
+  });
+});
+
+describe("calling the AI from the browser (voice test)", () => {
+  const speak = async (cid: string, bytes = 2048) =>
+    h.app.inject({
+      method: "POST", url: `/api/v1/locations/${r.lid}/test-chat/${cid}/audio`,
+      headers: { authorization: `Bearer ${await h.token(maya)}`, "content-type": "audio/webm;codecs=opus" }, payload: Buffer.alloc(bytes, 1),
+    });
+
+  test("a spoken turn is heard with the menu as hints, answered with the phone rules, and kept as plain text", async () => {
+    const res = await h.call(maya, "POST", `/locations/${r.lid}/test-chat`, { mode: "voice" });
+    assert.equal(res.status, 201, JSON.stringify(res.body));
+    const cid = res.body.chatId as string;
+    ears.next = "Do you have lattes? How much?";
+    model.steps = [() => say("Yes, a small Latte is **$4.50**.")];
+    const turn = await speak(cid);
+    assert.equal(turn.statusCode, 200, turn.body);
+    const body = JSON.parse(turn.body);
+    assert.equal(body.heard, "Do you have lattes? How much?");
+    assert.deepEqual(body.turn.replies, ["Yes, a small Latte is $4.50."], "markdown stars are never spoken or shown");
+    assert.equal(ears.got.at(-1)!.mimeType, "audio/webm;codecs=opus");
+    assert.match(ears.got.at(-1)!.hints!, /^Chat Cafe, .*Latte/, "the restaurant and its dishes help it spell what it hears");
+    assert.match((model.seen.at(-1)![0] as { content: string }).content, /You answer the phone/, "a browser call follows the phone rules");
+    const call = await withSystem(h.db, (tx) => maybeOne<{ summary: string }>(tx, "select summary from calls where id = $1", [cid]));
+    assert.equal(call?.summary, "Test call from the browser.");
+  });
+
+  test("silence or noise is ignored: the model isn't asked", async () => {
+    const res = await h.call(maya, "POST", `/locations/${r.lid}/test-chat`, { mode: "voice" });
+    const asked = model.seen.length;
+    ears.next = "Thank you.";
+    const body = JSON.parse((await speak(res.body.chatId)).body);
+    assert.equal(body.heard, "");
+    assert.deepEqual(body.turn.replies, []);
+    assert.equal(model.seen.length, asked);
+    assert.equal((await speak(res.body.chatId, 0)).statusCode, 400, "an empty recording is refused");
+  });
+
+  test("without speech-to-text, a browser call explains how to add a free key", async () => {
+    const bare = await buildApp({ ...h.deps, providers: { ...h.deps.providers, stt: null } });
+    const auth = { authorization: `Bearer ${await h.token(maya)}`, "content-type": "application/json" };
+    const start = await bare.inject({ method: "POST", url: `/api/v1/locations/${r.lid}/test-chat`, headers: auth, payload: JSON.stringify({ mode: "voice" }) });
+    const status = await bare.inject({ method: "GET", url: `/api/v1/locations/${r.lid}/test-chat`, headers: auth });
+    await bare.close();
+    assert.equal(start.statusCode, 503);
+    assert.match(JSON.parse(start.body).error.message, /console\.groq\.com\/keys/);
+    assert.equal(JSON.parse(status.body).voice, false);
   });
 });
 

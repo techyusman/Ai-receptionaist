@@ -27,6 +27,8 @@ const MAX_STEPS = 8;
 
 type Chat = {
   id: string;
+  /** "voice": the browser call (spoken replies, phone rules); "chat": typed. */
+  mode: "chat" | "voice";
   locationId: string;
   userId: string;
   ctx: CallContext;
@@ -35,6 +37,8 @@ type Chat = {
   startedAt: number;
   lastActive: number;
   busy: boolean;
+  /** The restaurant's name and dishes, to help speech-to-text spell them. */
+  hints?: string;
 };
 
 export type ChatTurn = {
@@ -46,6 +50,16 @@ export type ChatTurn = {
   notice: string | null;
   ended: boolean;
 };
+
+export const voiceNotConfigured = () =>
+  new HttpError(503, "UPSTREAM", "Calling the AI from the browser needs an AI key for hearing speech. Get a free one at console.groq.com/keys, put CHAT_AI_API_KEY=your-key in apps/server/.env.local, and restart the server.");
+
+/** Replies are shown and spoken as plain text: no markdown stars, underscores, code marks or headings. */
+export const plain = (text: string) => text.replace(/\*\*|__|`/g, "").replace(/^#+\s*/gm, "").trim();
+
+/** What Whisper "hears" in silence or noise; never treated as something the customer said. ("Bye" is
+ * kept: a customer may really say it to end the call.) */
+const NOISE = /^(?:thank you\.?|thanks for watching!?|you\.?|\.+|\s*)$/i;
 
 export const chatNotConfigured = () =>
   new HttpError(503, "UPSTREAM", "The test chat needs an AI key. Get a free one at console.groq.com/keys, put CHAT_AI_API_KEY=your-key in apps/server/.env.local, and restart the server.");
@@ -74,7 +88,8 @@ export class TestChats {
     return this.#deps.providers.chat?.label ?? null;
   }
 
-  async start(a: Access, lid: string): Promise<{ chatId: string; greeting: string; model: string }> {
+  async start(a: Access, lid: string, mode: "chat" | "voice" = "chat"): Promise<{ chatId: string; greeting: string; model: string }> {
+    if (mode === "voice" && !this.#deps.providers.stt) throw voiceNotConfigured();
     const model = this.#deps.providers.chat;
     if (!model) throw chatNotConfigured();
     // One open chat per person per location: starting again closes the last one.
@@ -85,10 +100,10 @@ export class TestChats {
       const call = await one<{ id: string }>(
         tx,
         `insert into calls (restaurant_id, location_id, provider_call_sid, is_test, from_e164, to_e164, started_at, answered_at, status, summary)
-         values ($1, $2, $3, true, null, $4, now(), now(), 'IN_PROGRESS', 'Test chat from the dashboard.') returning id`,
-        [a.restaurantId, lid, `CHAT-${randomUUID()}`, number?.e164 ?? "+15550000000"],
+         values ($1, $2, $3, true, null, $4, now(), now(), 'IN_PROGRESS', $5) returning id`,
+        [a.restaurantId, lid, `CHAT-${randomUUID()}`, number?.e164 ?? "+15550000000", mode === "voice" ? "Test call from the browser." : "Test chat from the dashboard."],
       );
-      await addEvent(tx, call.id, a.restaurantId, "call.started", "SYSTEM", `Test chat started by ${a.name ?? a.email}.`);
+      await addEvent(tx, call.id, a.restaurantId, "call.started", "SYSTEM", `${mode === "voice" ? "Browser test call" : "Test chat"} started by ${a.name ?? a.email}.`);
       await signal(tx, lid, { type: "call", id: call.id });
       return call.id;
     });
@@ -105,9 +120,10 @@ export class TestChats {
     const greeting = ensureDisclosure(ctx.settings.greeting);
     const now = Date.now();
     this.#chats.set(callId, {
-      id: callId, locationId: lid, userId: a.userId, ctx, startedAt: now, lastActive: now, busy: false,
+      id: callId, mode, locationId: lid, userId: a.userId, ctx, startedAt: now, lastActive: now, busy: false,
       messages: [
-        { role: "system", content: buildInstructions(ctx, { openNow, pronunciations, now: this.#deps.now(), channel: "chat" }) },
+        // A browser call is spoken, so it follows the phone rules; a typed chat follows the chat ones.
+        { role: "system", content: buildInstructions(ctx, { openNow, pronunciations, now: this.#deps.now(), channel: mode === "voice" ? "phone" : "chat" }) },
         { role: "assistant", content: greeting },
       ],
       transcript: [{ speaker: "AI", text: greeting, at_ms: 0 }],
@@ -130,14 +146,14 @@ export class TestChats {
       for (let step = 0; step < MAX_STEPS; step++) {
         const reply = await model.complete(chat.messages, chatTools);
         if (!reply.toolCalls.length) {
-          const said = reply.content?.trim() || "Sorry, could you say that again?";
+          const said = plain(reply.content ?? "") || "Sorry, could you say that again?";
           chat.messages.push({ role: "assistant", content: said });
           chat.transcript.push({ speaker: "AI", text: redact(said), at_ms: Date.now() - chat.startedAt });
           turn.replies.push(said);
           break;
         }
         chat.messages.push({ role: "assistant", content: reply.content ?? null, tool_calls: reply.toolCalls });
-        if (reply.content?.trim()) turn.replies.push(reply.content.trim());
+        if (reply.content?.trim()) turn.replies.push(plain(reply.content));
         for (const call of reply.toolCalls) {
           const run = await runTool(this.#deps, chat.ctx, call.function.name, call.function.arguments);
           if (run.note) turn.steps.push(run.note);
@@ -173,6 +189,28 @@ export class TestChats {
     });
     if (!turn.ended) await this.#saveTranscript(chat, a);
     return turn;
+  }
+
+  /** One spoken turn of a browser call: hear the clip, then answer it like a typed message. */
+  async hear(a: Access, lid: string, chatId: string, audio: Uint8Array, mimeType: string): Promise<{ heard: string; turn: ChatTurn }> {
+    const stt = this.#deps.providers.stt;
+    if (!stt) throw voiceNotConfigured();
+    const chat = this.#mine(a, lid, chatId);
+    chat.lastActive = Date.now();
+    chat.hints ??= await withSystem(this.#deps.db, async (tx) => {
+      const items = await many<{ name: string }>(tx, "select name from menu_items where location_id = $1 and not is_deleted order by name", [lid]);
+      return [chat.ctx.restaurantName, ...items.map((i) => i.name)].join(", ");
+    });
+    const nothing: ChatTurn = { replies: [], steps: [], order: null, notice: null, ended: false };
+    let heard: string;
+    try {
+      heard = (await stt.transcribe(audio, mimeType, chat.hints)).trim();
+    } catch (e) {
+      if (e instanceof ChatModelError) return { heard: "", turn: { ...nothing, notice: e.message } };
+      throw e;
+    }
+    if (NOISE.test(heard)) return { heard: "", turn: nothing };
+    return { heard, turn: await this.send(a, lid, chatId, heard) };
   }
 
   async end(a: Access, lid: string, chatId: string): Promise<void> {

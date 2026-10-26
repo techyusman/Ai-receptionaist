@@ -28,7 +28,7 @@ export default function TestChatPage() {
 async function ChatContent() {
   const session = await requireSession();
   if (!can(session.role, "agent.test")) return <NoAccess />;
-  const status = await api.getTestChatStatus();
+  const [status, location] = await Promise.all([api.getTestChatStatus(), api.getLocation()]);
   if (!status.configured || !status.model) {
     return (
       <Card className="flex flex-col gap-3">
@@ -40,5 +40,5 @@ async function ChatContent() {
       </Card>
     );
   }
-  return <ChatWindow restaurant={session.restaurant.name} model={status.model} />;
+  return <ChatWindow restaurant={session.restaurant.name} model={status.model} voice={status.voice} country={location.address.country} />;
 }

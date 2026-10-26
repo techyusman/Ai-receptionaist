@@ -1,20 +1,30 @@
 "use client";
 
 import { formatMoney } from "@receptionist/domain";
-import { CheckCheck, MessageCircle, RotateCcw, SendHorizontal, X } from "lucide-react";
+import { CheckCheck, Hand, MessageCircle, Mic, MicOff, Phone, PhoneOff, RotateCcw, SendHorizontal, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { chatEnd, chatSend, chatStart } from "@/app/actions/test-chat";
+import { chatEnd, chatHear, chatSend, chatStart } from "@/app/actions/test-chat";
 import { Button, IconButton } from "@/components/ui/button";
 import { Card, StatusPill } from "@/components/ui/display";
 import type { OrderSummary } from "@/data/types";
 import { cn } from "@/lib/cn";
+import { useVoiceCall, type CallState } from "./use-voice-call";
 
 type Message = { id: number; from: "customer" | "ai" | "system"; text: string; at: Date };
 
 const STAND_IN = /^Scripted stand-in/;
 const SENT_STATUSES = new Set(["SUBMITTED_TO_POS", "RECEIVED_BY_RESTAURANT", "POS_VISIBILITY_UNVERIFIED"]);
 const time = (d: Date) => new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(d);
+const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+const CALL_STATUS: Record<CallState, string> = {
+  off: "",
+  connecting: "Calling…",
+  listening: "Listening… speak any time",
+  hearing: "Hearing you…",
+  thinking: "Thinking…",
+  speaking: "Speaking…",
+};
 const initials = (name: string) => name.split(/\s+/).filter((w) => /\w/.test(w)).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("");
 
 /** How to switch the chat from the scripted stand-in (or nothing) to a real, free AI. */
@@ -38,8 +48,11 @@ export function GroqKeySteps() {
   );
 }
 
-/** S22b. A chat drawn like a phone messaging app, with what the AI did and the order beside it. */
-export function ChatWindow({ restaurant, model }: { restaurant: string; model: string }) {
+/**
+ * S22b. A chat drawn like a phone messaging app, with what the AI did and the order beside it. With `voice`
+ * it can also be a call from the browser: you talk, the AI answers out loud, and the transcript fills in.
+ */
+export function ChatWindow({ restaurant, model, voice, country }: { restaurant: string; model: string; voice: boolean; country: string }) {
   const [chatId, setChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [steps, setSteps] = useState<string[]>([]);
@@ -47,7 +60,12 @@ export function ChatWindow({ restaurant, model }: { restaurant: string; model: s
   const [ended, setEnded] = useState(false);
   const [draft, setDraft] = useState("");
   const [pending, start] = useTransition();
+  const [inCall, setInCall] = useState(false);
+  const [callSeconds, setCallSeconds] = useState(0);
   const nextId = useRef(0);
+  const chatIdRef = useRef<string | null>(null);
+  /** The greeting of the chat just started, so a call can say it out loud. */
+  const messagesGreeting = useRef<string | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
 
@@ -57,13 +75,81 @@ export function ChatWindow({ restaurant, model }: { restaurant: string; model: s
     bottom.current?.scrollIntoView({ block: "end", behavior: "smooth" });
   }, [messages, pending]);
 
-  const begin = async (): Promise<string | null> => {
-    const r = await chatStart();
+  useEffect(() => {
+    chatIdRef.current = chatId;
+  }, [chatId]);
+
+  useEffect(() => {
+    if (!inCall) return;
+    const started = Date.now();
+    const timer = setInterval(() => setCallSeconds(Math.round((Date.now() - started) / 1000)), 1000);
+    return () => clearInterval(timer);
+  }, [inCall]);
+
+  // One spoken turn: the server hears it and answers; the answer is spoken, then the call listens again.
+  const call = useVoiceCall({ country, onTurn: (audio: Blob) => void heardTurn(audio) });
+
+  async function heardTurn(audio: Blob) {
+    const id = chatIdRef.current;
+    if (!id) return;
+    const form = new FormData();
+    form.append("audio", audio, "speech.webm");
+    const r = await chatHear(id, form);
+    if (!r.ok) {
+      add("system", r.message);
+      if (/has ended/.test(r.message)) return hangUp(false);
+      return call.listen();
+    }
+    const { heard, turn } = r.data;
+    if (heard) add("customer", heard);
+    for (const reply of turn.replies) add("ai", reply);
+    if (turn.steps.length) setSteps((s) => [...s, ...turn.steps]);
+    if (turn.order) setOrder(turn.order);
+    if (turn.notice) add("system", turn.notice);
+    if (turn.replies.length) await call.speak(turn.replies.join(" "));
+    if (turn.ended) return hangUp(false);
+    call.listen();
+  }
+
+  const startCall = () =>
+    start(async () => {
+      if (chatId && !ended) await chatEnd(chatId);
+      setMessages([]);
+      const problem = await call.open();
+      if (problem) {
+        add("system", problem);
+        return;
+      }
+      const id = await begin("voice");
+      if (!id) {
+        call.close();
+        return;
+      }
+      setCallSeconds(0);
+      setInCall(true);
+      const greeting = messagesGreeting.current;
+      if (greeting) await call.speak(greeting);
+      call.listen();
+    });
+
+  function hangUp(byYou = true) {
+    call.close();
+    setInCall(false);
+    setEnded(true);
+    const id = chatIdRef.current;
+    if (byYou && id) void chatEnd(id);
+    add("system", byYou ? "You hung up." : "The call ended.");
+  }
+
+  const begin = async (mode: "chat" | "voice" = "chat"): Promise<string | null> => {
+    const r = await chatStart(mode);
     if (!r.ok) {
       add("system", r.message);
       return null;
     }
     setChatId(r.data.chatId);
+    chatIdRef.current = r.data.chatId;
+    messagesGreeting.current = r.data.greeting;
     setEnded(false);
     setSteps([]);
     setOrder(null);
@@ -129,25 +215,61 @@ export function ChatWindow({ restaurant, model }: { restaurant: string; model: s
             <div className="min-w-0 flex-1">
               <p className="truncate font-semibold">{restaurant}</p>
               <p className="truncate text-xs" aria-live="polite">
-                {pending && chatId ? "typing…" : ended ? "chat ended" : chatId ? "AI assistant · online" : "AI assistant"}
+                {inCall ? `On a call · ${clock(callSeconds)}` : pending && chatId ? "typing…" : ended ? "chat ended" : chatId ? "AI assistant · online" : "AI assistant"}
               </p>
             </div>
-            <IconButton label="New chat" size="sm" variant="ghost" className="text-on-chat-header hover:bg-chat-in/20" disabled={pending} onClick={newChat}>
+            {voice && !inCall && (
+              <IconButton label="Call the AI" size="sm" variant="ghost" className="text-on-chat-header hover:bg-chat-in/20" disabled={pending} onClick={startCall}>
+                <Phone aria-hidden />
+              </IconButton>
+            )}
+            <IconButton label="New chat" size="sm" variant="ghost" className="text-on-chat-header hover:bg-chat-in/20" disabled={pending || inCall} onClick={newChat}>
               <RotateCcw aria-hidden />
             </IconButton>
-            <IconButton label="End chat" size="sm" variant="ghost" className="text-on-chat-header hover:bg-chat-in/20" disabled={pending || !chatId || ended} onClick={endChat}>
+            <IconButton label="End chat" size="sm" variant="ghost" className="text-on-chat-header hover:bg-chat-in/20" disabled={pending || !chatId || ended || inCall} onClick={endChat}>
               <X aria-hidden />
             </IconButton>
           </header>
+
+          {inCall && (
+            <div className="flex flex-wrap items-center gap-2 border-b border-border bg-chat-in px-3 py-2">
+              <span className="flex min-w-0 flex-1 items-center gap-2 text-sm text-fg" role="status">
+                {/* How loud the microphone hears you, so you can tell it's working. */}
+                <span aria-hidden className="h-2 w-12 shrink-0 overflow-hidden rounded-pill bg-surface-muted">
+                  <span className="block h-full rounded-pill bg-chat-header" style={{ width: `${Math.round(call.level * 100)}%` }} />
+                </span>
+                <span className="truncate">{call.muted ? "Muted" : CALL_STATUS[call.state]}</span>
+              </span>
+              {call.state === "speaking" && (
+                <Button size="sm" variant="secondary" onClick={call.interrupt}>
+                  <Hand aria-hidden /> Let me speak
+                </Button>
+              )}
+              <IconButton label={call.muted ? "Unmute" : "Mute"} size="sm" variant="secondary" aria-pressed={call.muted} onClick={call.toggleMute}>
+                {call.muted ? <MicOff aria-hidden /> : <Mic aria-hidden />}
+              </IconButton>
+              <Button size="sm" variant="danger" onClick={() => hangUp(true)}>
+                <PhoneOff aria-hidden /> Hang up
+              </Button>
+            </div>
+          )}
 
           <div role="log" aria-label="Messages" className="flex flex-1 flex-col gap-2 overflow-y-auto bg-chat-wallpaper px-3 py-4">
             {messages.length === 0 && !pending && (
               <div className="m-auto flex max-w-xs flex-col items-center gap-3 rounded-lg bg-chat-in px-4 py-5 text-center shadow-card">
                 <MessageCircle aria-hidden className="size-6 text-muted" />
                 <p className="text-sm text-fg">Say hello, ask about the hours, or order something. You&apos;re the customer.</p>
-                <Button size="sm" onClick={newChat}>
-                  Start chat
-                </Button>
+                <div className="flex flex-wrap justify-center gap-2">
+                  <Button size="sm" onClick={newChat}>
+                    Start chat
+                  </Button>
+                  {voice && (
+                    <Button size="sm" variant="secondary" onClick={startCall}>
+                      <Phone aria-hidden /> Call the AI
+                    </Button>
+                  )}
+                </div>
+                {voice && <p className="text-xs text-muted">A call uses your microphone and speakers; it works in Edge and Chrome.</p>}
               </div>
             )}
             {messages.map((m) =>
@@ -197,10 +319,11 @@ export function ChatWindow({ restaurant, model }: { restaurant: string; model: s
               onChange={(e) => setDraft(e.target.value)}
               maxLength={500}
               autoComplete="off"
-              placeholder={ended ? "Chat ended. Type to start a new one" : "Type a message"}
+              disabled={inCall}
+              placeholder={inCall ? "On a call: just speak" : ended ? "Chat ended. Type to start a new one" : "Type a message"}
               className="h-10 min-w-0 flex-1 rounded-pill border border-input bg-surface px-4 text-sm text-fg placeholder:text-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
             />
-            <IconButton label="Send" type="submit" disabled={pending || !draft.trim()} className="rounded-pill bg-chat-header text-on-chat-header hover:bg-chat-header">
+            <IconButton label="Send" type="submit" disabled={pending || inCall || !draft.trim()} className="rounded-pill bg-chat-header text-on-chat-header hover:bg-chat-header">
               <SendHorizontal aria-hidden />
             </IconButton>
           </form>

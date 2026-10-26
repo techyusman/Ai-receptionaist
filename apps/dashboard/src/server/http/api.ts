@@ -6,7 +6,7 @@ import type {
   Settings, SetupTask, SpecialHours, SquareLocationOption, TransferTarget,
 } from "@/data/types";
 import { requireSession } from "../auth";
-import { del, get, isId, orNull, patch, post, put } from "./client";
+import { apiFetch, del, get, isId, orNull, patch, post, put } from "./client";
 
 export { InputError, UnavailableError } from "./client";
 
@@ -262,14 +262,19 @@ export async function getTestOrder(orderId: string): Promise<Order | null> {
 export type ChatTurn = { replies: string[]; steps: string[]; order: OrderSummary | null; notice: string | null; ended: boolean };
 const chatBase = async () => `/locations/${await loc()}/test-chat`;
 
-export async function getTestChatStatus(): Promise<{ configured: boolean; model: string | null }> {
+export async function getTestChatStatus(): Promise<{ configured: boolean; model: string | null; voice: boolean }> {
   return get(await chatBase());
 }
-export async function startTestChat(): Promise<{ chatId: string; greeting: string; model: string }> {
-  return post(await chatBase());
+/** "voice" is a call from the browser: the AI follows the phone rules and its replies are spoken. */
+export async function startTestChat(mode: "chat" | "voice" = "chat"): Promise<{ chatId: string; greeting: string; model: string }> {
+  return post(await chatBase(), { mode });
 }
 export async function sendTestChat(chatId: string, text: string): Promise<ChatTurn> {
-  return post(`${await chatBase()}/${chatId}/messages`, { text });
+  return apiFetch("POST", `${await chatBase()}/${chatId}/messages`, { body: { text }, timeoutMs: 75_000 });
+}
+/** One spoken turn of a browser call: the server hears it, then answers it. */
+export async function sendTestChatAudio(chatId: string, data: Uint8Array, type: string): Promise<{ heard: string; turn: ChatTurn }> {
+  return apiFetch("POST", `${await chatBase()}/${chatId}/audio`, { raw: { data, type }, timeoutMs: 75_000 });
 }
 export async function endTestChat(chatId: string): Promise<void> {
   await post(`${await chatBase()}/${chatId}/end`);

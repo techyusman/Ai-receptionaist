@@ -54,6 +54,8 @@ const schema = z.object({
   CHAT_AI_API_KEY: optionalString,
   CHAT_AI_BASE_URL: z.string().default("https://api.groq.com/openai/v1"),
   CHAT_AI_MODEL: z.string().default("openai/gpt-oss-120b"),
+  // Speech to text for calling the AI from the browser, on the same service and key.
+  CHAT_AI_STT_MODEL: z.string().default("whisper-large-v3-turbo"),
 
   SQUARE_API_VERSION: z.string().default("2026-08-19"),
   SQUARE_APPLICATION_ID_SANDBOX: optionalString,

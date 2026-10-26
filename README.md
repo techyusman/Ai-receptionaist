@@ -144,7 +144,16 @@ Groq's free tier:
    ```
 3. Restart `npm run dev:stack`.
 
-The model is `openai/gpt-oss-120b` unless you set `CHAT_AI_MODEL`. Any OpenAI-compatible service works: set
+**Call the AI from your browser.** With the key set, the chat window has a **Call the AI** button: you
+talk into your microphone and the AI answers out loud, with the phone rules (short spoken replies, numbers
+read back digit by digit). It hears you with Groq's free Whisper, using your menu's dish names as hints, and
+speaks with your browser's own voices (Edge and Chrome; Edge's "Natural" voices sound best). It waits
+for you to stop talking, so no button-pressing; the microphone is ignored while the AI speaks, so it doesn't
+hear itself. **Let me speak** interrupts it. This is a voice test in the browser, not a phone line: real
+phone calls need Twilio (see below).
+
+The model is `openai/gpt-oss-120b` unless you set `CHAT_AI_MODEL` (and `CHAT_AI_STT_MODEL` for hearing,
+`whisper-large-v3-turbo` by default). Any OpenAI-compatible service works: set
 `CHAT_AI_BASE_URL` too (for example `https://api.x.ai/v1` for xAI's Grok, which is paid). The free tier has
 per-minute limits; if you hit one, the chat waits briefly and then tells you to try again in a minute.
 

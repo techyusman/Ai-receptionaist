@@ -25,6 +25,7 @@ import { grantQueueAccess, PgBossQueue } from "../src/jobs/pgboss.ts";
 import { LiveBus } from "../src/live.ts";
 import { FakeTwilio } from "../src/providers/fakes.ts";
 import { createChatModel } from "../src/providers/chat.ts";
+import { createSpeechToText } from "../src/providers/speech.ts";
 import { createOpenAiRealtime } from "../src/providers/realtime-openai.ts";
 import { ScriptedChatModel } from "../src/dev/chat-stub.ts";
 import { createSquareFactory } from "../src/providers/square-http.ts";
@@ -155,6 +156,8 @@ const deps: Deps = {
     chat: config.CHAT_AI_API_KEY
       ? createChatModel({ baseUrl: config.CHAT_AI_BASE_URL, apiKey: config.CHAT_AI_API_KEY, model: config.CHAT_AI_MODEL })
       : new ScriptedChatModel(),
+    // Calling the AI from the browser needs a real key: there is no stand-in for hearing speech.
+    stt: config.CHAT_AI_API_KEY ? createSpeechToText({ baseUrl: config.CHAT_AI_BASE_URL, apiKey: config.CHAT_AI_API_KEY, model: config.CHAT_AI_STT_MODEL }) : null,
   },
   now: () => new Date(),
 };

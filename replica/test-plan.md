@@ -173,6 +173,8 @@ been run. 15 bugs were found on the way; see `replica/bugs.md`.
 | F15-E4 | edge: numbers in the transcript | a phone or card number in a message | masked to the last four digits in what is kept | server `test-chat.test` | pass |
 | F15-E5 | edge: the bigger menu | spice level required, meal deal asks for a drink, at most five toppings, sold-out size and dish, a tray with no fixed price | each enforced; the sold-out and unpriced never offered; none of the café's items | server `sample-menu.test` + e2e | pass |
 | F15-E6 | edge: Pakistani numbers | in the Lahore restaurant, give 0300 1234567 as the callback number; in New York, the same number, then +92 300 1234567 | Lahore stores +923001234567; New York refuses the local form with a US example and takes the +92 form | server `phone.test` | pass |
+| F15-H3 | happy | call the AI from the browser: speak, the AI answers out loud | the clip is heard with the menu as hints, answered with the phone rules, shown and spoken as plain text | server `test-chat.test` (browser voice: manual M-8) | pass |
+| F15-E7 | edge: silence or noise | a clip with nothing said (Whisper hears "Thank you.") | ignored: the model isn't asked, the call keeps listening | server `test-chat.test` | pass |
 | F15-N1 | negative: permission | staff open the chat; a manager writes into the owner's chat; another restaurant uses the chat's id | refused | server `test-chat.test` + e2e | pass |
 | F15-N2 | negative: no key | the server has no chat model | explains how to add a free key | server `test-chat.test` | pass |
 
@@ -198,3 +200,4 @@ been run. 15 bugs were found on the way; see `replica/bugs.md`.
 | M-5 | Invite a real address | the email arrives from your domain (not spam); the link works |
 | M-6 | Sign-in emails | the code arrives within a minute, from your domain |
 | M-7 | Staff alert text | arrives (needs A2P 10DLC) |
+| M-8 | AI agent > Chat test > Call the AI, in Edge, with the Groq key set: order a zinger meal by voice, give 0300 1234567 | it hears you, answers out loud, asks for the drink and spice level, reads the number back, and the order shows on Live orders |

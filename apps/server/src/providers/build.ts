@@ -3,6 +3,7 @@
 import type { Config } from "../config.ts";
 import { createChatModel } from "./chat.ts";
 import { createOpenAiRealtime } from "./realtime-openai.ts";
+import { createSpeechToText } from "./speech.ts";
 import { createResend } from "./resend.ts";
 import type { Providers } from "./index.ts";
 import { createSquareFactory, type SquareCredentials } from "./square-http.ts";
@@ -28,6 +29,7 @@ export function buildProviders(config: Config, overrides: Partial<Providers> = {
     square: Object.keys(credentials).length ? createSquareFactory({ apiVersion: config.SQUARE_API_VERSION, credentials }) : null,
     realtime: config.OPENAI_API_KEY ? createOpenAiRealtime({ apiKey: config.OPENAI_API_KEY, model: config.OPENAI_REALTIME_MODEL, url: config.OPENAI_REALTIME_URL }) : null,
     chat: config.CHAT_AI_API_KEY ? createChatModel({ baseUrl: config.CHAT_AI_BASE_URL, apiKey: config.CHAT_AI_API_KEY, model: config.CHAT_AI_MODEL }) : null,
+    stt: config.CHAT_AI_API_KEY ? createSpeechToText({ baseUrl: config.CHAT_AI_BASE_URL, apiKey: config.CHAT_AI_API_KEY, model: config.CHAT_AI_STT_MODEL }) : null,
     ...overrides,
   };
 }
