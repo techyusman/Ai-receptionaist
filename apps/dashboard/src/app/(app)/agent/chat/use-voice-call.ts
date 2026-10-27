@@ -19,7 +19,8 @@ const MIN_SPEECH_MS = 300; // shorter than this is a cough or a click
 const MAX_TURN_MS = 30_000; // the server takes up to about 30 seconds a turn
 const IDLE_RESTART_MS = 15_000; // a recording with no speech is thrown away and started again
 const VOICE_PIECE = 200; // characters the human voice takes at a time
-const VOICE_WAIT_MS = 3_000; // the human voice gets this long to start a reply before the browser's says it
+const FIRST_PIECE = 40; // characters the human voice starts a reply with, at least
+const VOICE_WAIT_MS = 4_000; // the human voice gets this long to start a reply before the browser's says it
 const LIMIT_PAUSE_MS = 60_000; // after the human voice hits its free limit, the browser's speaks this long
 /** Said while a slow answer is on its way, as a person would. */
 const FILLERS = ["One moment.", "Okay, just a second."];
@@ -77,8 +78,17 @@ function pack(parts: string[], max: number): string[] {
   return out;
 }
 
-/** A reply in pieces the human voice takes, split between sentences where it can and between words where it must. */
-export const pieces = (text: string, max = VOICE_PIECE) => pack(sentences(text).flatMap((s) => (s.length <= max ? [s] : pack(s.split(/\s+/), max))), max);
+/**
+ * A reply in pieces the human voice takes, split between sentences where it can and between words where it
+ * must. The first piece is short (a sentence or two, about FIRST_PIECE characters): the voice takes longer
+ * the more it has to say, so a short start is heard sooner while the rest is made.
+ */
+export function pieces(text: string, max = VOICE_PIECE): string[] {
+  const parts = sentences(text).flatMap((s) => (s.length <= max ? [s] : pack(s.split(/\s+/), max)));
+  let first = "";
+  while (parts.length && first.length < FIRST_PIECE && (first ? first.length + 1 : 0) + parts[0]!.length <= max) first = first ? `${first} ${parts.shift()}` : parts.shift()!;
+  return [...(first ? [first] : []), ...pack(parts, max)];
+}
 
 /** The human voice said no: `status` is the HTTP status (0 when it was too slow). */
 class VoiceProblem extends Error {
@@ -306,6 +316,7 @@ export function useVoiceCall({
     (e: unknown) => {
       if (!(e instanceof VoiceProblem)) return tell("The human-sounding voice couldn't play here, so the browser's voice is speaking.");
       if (e.status === 0) return tell("The human-sounding voice was slow to answer, so the browser's voice said that.");
+      if (e.status === 404) return; // the chat is over; nothing for the caller to fix
       if (e.status === 401 || e.status === 403 || /terms|one-time OK|refused the key|No voice is set up/i.test(e.message)) {
         human.off = e.message;
         return tell(`${e.message} Until then the browser's voice speaks; reload this page after.`);

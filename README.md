@@ -149,7 +149,7 @@ talk into your microphone and the AI answers out loud, with the phone rules (sho
 read back digit by digit). It hears you with Groq's free Whisper, using your menu's dish names as hints.
 It waits for you to stop talking (0.7 s of quiet ends your turn), so no button-pressing; the microphone is
 ignored while the AI speaks, so it doesn't hear itself. **Let me speak** interrupts it. If an answer takes
-more than a moment, the AI says "One moment" instead of leaving you in silence. Beside the chat you see how
+more than 3 seconds, the AI says "One moment" instead of leaving you in silence. Beside the chat you see how
 soon each reply started and where the time went. This is a voice test in the browser, not a phone line:
 real phone calls need Twilio (see below).
 

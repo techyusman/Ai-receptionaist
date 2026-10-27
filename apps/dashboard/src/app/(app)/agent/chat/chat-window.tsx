@@ -27,8 +27,11 @@ const CALL_STATUS: Record<CallState, string> = {
   thinking: "Thinking…",
   speaking: "Speaking…",
 };
-/** A slow answer gets a short "one moment" after this long, so the caller isn't left in silence. */
-const HOLD_ON_MS = 1_500;
+/**
+ * A slow answer gets a short "one moment" after this long, so the caller isn't left in silence. Not sooner:
+ * most answers take about 2 s, and one that arrives while "one moment" is playing waits for it to finish.
+ */
+const HOLD_ON_MS = 3_000;
 const seconds = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
 const initials = (name: string) => name.split(/\s+/).filter((w) => /\w/.test(w)).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("");
 

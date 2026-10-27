@@ -50,7 +50,9 @@ class FakeEars implements SpeechToText {
 class FakeVoice implements TextToSpeech {
   readonly label = "Voice";
   refuse = false;
+  asked: string[] = [];
   async speak(text: string) {
+    this.asked.push(text);
     if (this.refuse) throw new ChatModelError("auth", "The human-sounding voice needs a one-time OK from the Groq account owner: open https://console.groq.com/playground and accept the terms.");
     return { audio: new TextEncoder().encode(`RIFF:${text}`), mimeType: "audio/wav" };
   }
@@ -230,6 +232,23 @@ describe("the test chat", () => {
     assert.equal(plain("May I have your name, please?(Waiting for response)(Note: awaiting user input)"), "May I have your name, please?");
     assert.equal(plain("The total is PKR 1,798. Is that all correct?Yes, that's correct."), "The total is PKR 1,798. Is that all correct?");
     assert.equal(plain("Is that a large (12 inch)? Yes, we have it."), "Is that a large (12 inch)? Yes, we have it.", "ordinary text is left alone");
+    // Turns run together with no space after the punctuation, the customer's side included: only the first is its own.
+    assert.equal(
+      plain("Great. May I have your name, please?And your phone number?Please read it back.Sure, it's 03 1234 5678? My name is Ali."),
+      "Great. May I have your name, please?",
+    );
+    assert.equal(plain("The total is PKR 1,798.Is that all correct?"), "The total is PKR 1,798.");
+    assert.equal(plain("We open at 12 P.M. today, and a large is Rs. 1,550.50."), "We open at 12 P.M. today, and a large is Rs. 1,550.50.", "abbreviations and decimals are left alone");
+  });
+
+  test("a line the AI already said this turn isn't said again", async () => {
+    const chat = await start();
+    model.steps = [
+      () => ({ content: "Sure. May I have your name, please?", toolCalls: [{ id: `c${++n}`, type: "function", function: { name: "search_menu", arguments: JSON.stringify({ query: "latte" }) } }] }),
+      () => say("May I have your name, please?"),
+    ];
+    const t = await send(chat.chatId, "A latte please");
+    assert.deepEqual(t.replies, ["Sure. May I have your name, please?"]);
   });
 
   test("a transfer can't happen in a chat: it's closed, the chat says where a call would have gone, and ends", async () => {
@@ -333,6 +352,21 @@ describe("calling the AI from the browser (voice test)", () => {
     voice.refuse = false;
     assert.equal(refused.statusCode, 503);
     assert.match(JSON.parse(refused.body).error.message, /accept the terms/);
+
+    // Something said before comes from memory: the greeting repeats on every call, and the free voice allows about 100 a day.
+    const before = voice.asked.length;
+    assert.equal((await say("Assalam-o-alaikum! What can I get you?")).body, "RIFF:Assalam-o-alaikum! What can I get you?");
+    assert.equal(voice.asked.length, before, "not asked of the voice service again");
+    voice.refuse = true;
+    assert.equal((await say("Hello")).statusCode, 503, "a refusal isn't remembered as audio");
+    voice.refuse = false;
+    assert.equal((await say("Hello")).statusCode, 200, "and is asked again next time");
+
+    // The goodbye is spoken after the AI has ended the call, so a chat that just ended can still be voiced.
+    assert.equal((await h.call(maya, "POST", `/locations/${r.lid}/test-chat/${cid}/end`, {})).status, 204);
+    assert.equal((await say("Thanks for calling. Goodbye!")).statusCode, 200);
+    const other = h.app.inject({ method: "POST", url: `/api/v1/locations/${r.lid}/test-chat/${cid}/speech`, headers: { authorization: `Bearer ${await h.token(jordan)}`, "content-type": "application/json" }, payload: JSON.stringify({ text: "Hi" }) });
+    assert.equal((await other).statusCode, 404, "but only by the person whose chat it was");
   });
 
   test("without speech-to-text, a browser call explains how to add a free key", async () => {

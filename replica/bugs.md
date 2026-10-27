@@ -28,6 +28,8 @@ test that failed before it and passes after; the test is named under Evidence.
 | BUG-020 | S3 | Stage directions like "(Waiting for response)" are shown and spoken | fixed |
 | BUG-021 | S2 | Order turns on Groq's free tier wait 10-90 s for its per-minute limit | open (limit of the free plan) |
 | BUG-022 | S2 | Under the free limit, the smaller fallback model says an order is ready when it was never sent | open |
+| BUG-023 | S2 | On a browser call the AI rambles: turns run together, its own lines repeat, and it speaks the customer's side | fixed |
+| BUG-024 | S3 | Browser call replies start 2 s late, and the voice switches to the browser's mid-call | fixed |
 
 ### BUG-001: A dropped database connection crashes the API and worker
 
@@ -458,6 +460,36 @@ Actual: after taking the number, gpt-oss-20b said "Your order is ready for picku
 ended the call. The order was not priced, confirmed or sent (it was correctly marked ABANDONED), but the
 customer was told it was ready.
 Status: open. Seen only with the smaller fallback model while the main one was at its limit.
+
+### BUG-023: On a browser call the AI rambles: turns run together, its own lines repeat, and it speaks the customer's side
+
+- Severity: S2 (the caller hears nonsense, including a made-up number read out as theirs)
+- Flow / case: M-8, M-9 (browser call in Edge, scripted microphone)
+- Build: 46f5618
+
+Actual: "Great. May I have your name, please?And your phone number?Please read back your phone number digit by
+digit so I can confirm.Sure, I'll read it back. It's 03 1234 5678? Is that correct?", then "May I have your
+name, please?" twice more in the same turn. The model joins several turns with no space after the stop, and
+repeats its question after each tool step.
+Tests: test-chat "stage directions and answers the AI writes for the customer are never shown or spoken",
+"a line the AI already said this turn isn't said again". Fixed: a reply stops where turns run together, and a
+line already said this turn isn't said again.
+Status: fixed (browser run 3: clean replies throughout).
+
+### BUG-024: Browser call replies start 2 s late, and the voice switches to the browser's mid-call
+
+- Severity: S3
+- Build: 46f5618
+Actual: replies started about 5.5 s after the caller stopped, though hearing, thinking and the voice took
+about 3.7 s: "One moment" started after 1.5 s and the answer, arriving just after, waited for it to finish.
+Orpheus took 1.4 to 3.3 s to start a reply; past 3 s the browser's voice took over ("Microsoft George"). The
+goodbye couldn't be voiced at all: the chat had already ended (404).
+Fixed: "One moment" only after 3 s; the human voice starts with a short first piece while the rest is made,
+and gets 4 s; short lines it said before come from memory (the greeting, "One moment"); a chat that just
+ended can still be voiced for two minutes, by its owner only. Test: test-chat "the AI's voice".
+Evidence: browser run 3, every line in the human voice; simple turns start 2.1 to 2.4 s after the caller's
+line ends (were 3.4 to 4.1 s), order turns 5.6 to 8 s (were 18 to 34 s).
+Status: fixed.
 
 ## To check (not reproduced)
 

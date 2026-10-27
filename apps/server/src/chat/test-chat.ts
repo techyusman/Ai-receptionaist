@@ -82,9 +82,20 @@ export const plain = (text: string) =>
     .replace(/^#+\s*/gm, "")
     // Stage directions a model sometimes writes after its question; never said out loud.
     .replace(/\s*\((?:waiting|awaiting|note|pause|silence)\b[^)]*\)/gi, "")
-    // A model that runs on into the customer's answer ("Is that correct?Yes, that's correct.") stops at its question.
-    .replace(/\?(?:Yes|Yeah|Sure|No|Okay|OK)\b[\s\S]*$/, "?")
+    // A model sometimes runs several turns together with no space after the stop ("…please?And your number?
+    // My name is Ali…"), even writing the customer's side; only the first part is its own reply.
+    .replace(/([a-z0-9)"'’][.?!])(?=[A-Z])[\s\S]*$/, "$1")
     .trim();
+
+/** A line already said this turn (the model often repeats its question after a tool step) is said once. */
+const addReply = (turn: ChatTurn, text: string) => {
+  if (text && !turn.replies.some((r) => r.includes(text))) turn.replies.push(text);
+};
+
+/** The voice is kept for short lines only (the greeting, "One moment", "Anything else?"): those repeat. */
+const REMEMBER_VOICE_UP_TO = 120;
+/** A chat that just ended can still be voiced this long: the AI's goodbye is spoken after it hangs up. */
+const GOODBYE_MS = 2 * 60_000;
 
 /** What Whisper "hears" in silence or noise; never treated as something the customer said. ("Bye" is
  * kept: a customer may really say it to end the call.) */
@@ -150,6 +161,10 @@ const chatTools: ChatTool[] = TOOLS.map((t) => ({ type: "function", function: { 
 export class TestChats {
   readonly #deps: Deps;
   readonly #chats = new Map<string, Chat>();
+  /** Chats that just ended, so their goodbye can still be voiced. */
+  readonly #ended = new Map<string, { userId: string; locationId: string; until: number }>();
+  /** Voice already made for short lines, by text. */
+  readonly #voiced = new Map<string, Promise<{ audio: Uint8Array; mimeType: string }>>();
   readonly #sweep: ReturnType<typeof setInterval>;
 
   constructor(deps: Deps) {
@@ -233,11 +248,11 @@ export class TestChats {
           const said = plain(reply.content ?? "") || "Sorry, could you say that again?";
           chat.messages.push({ role: "assistant", content: said });
           chat.transcript.push({ speaker: "AI", text: redact(said), at_ms: Date.now() - chat.startedAt });
-          turn.replies.push(said);
+          addReply(turn, said);
           break;
         }
         chat.messages.push({ role: "assistant", content: reply.content ?? null, tool_calls: reply.toolCalls });
-        if (reply.content?.trim()) turn.replies.push(plain(reply.content));
+        if (reply.content?.trim()) addReply(turn, plain(reply.content));
         for (const call of reply.toolCalls) {
           const { name, arguments: args } = call.function;
           const run = inventedNumber(chat, name, args) ?? confirmedForThem(chat, name, args) ?? (await runTool(this.#deps, chat.ctx, name, args));
@@ -308,9 +323,18 @@ export class TestChats {
   async speech(a: Access, lid: string, chatId: string, text: string): Promise<{ audio: Uint8Array; mimeType: string }> {
     const tts = this.#deps.providers.tts;
     if (!tts) throw new HttpError(503, "UPSTREAM", "No voice is set up on this server, so the browser's own voice is used.");
-    this.#mine(a, lid, chatId);
+    const ended = this.#ended.get(chatId);
+    if (!(ended && ended.until > Date.now() && ended.userId === a.userId && ended.locationId === lid)) this.#mine(a, lid, chatId);
     try {
-      return await tts.speak(text);
+      if (text.length > REMEMBER_VOICE_UP_TO) return await tts.speak(text);
+      let voiced = this.#voiced.get(text);
+      if (!voiced) {
+        voiced = tts.speak(text);
+        this.#voiced.set(text, voiced);
+        voiced.catch(() => this.#voiced.delete(text));
+        if (this.#voiced.size > 40) this.#voiced.delete(this.#voiced.keys().next().value!);
+      }
+      return await voiced;
     } catch (e) {
       if (e instanceof ChatModelError) throw new HttpError(e.problem === "rate_limited" ? 429 : 503, "UPSTREAM", e.message);
       throw e;
@@ -340,6 +364,8 @@ export class TestChats {
 
   async #end(chat: Chat, a: Pick<Access, "restaurantId" | "userId" | "actorType">, note: string) {
     this.#chats.delete(chat.id);
+    for (const [id, e] of this.#ended) if (e.until < Date.now()) this.#ended.delete(id);
+    this.#ended.set(chat.id, { userId: chat.userId, locationId: chat.locationId, until: Date.now() + GOODBYE_MS });
     await this.#saveTranscript(chat, a as Access);
     await tenant(this.#deps, a as Access, async (tx) => {
       // A draft nobody confirmed is dropped, as when a test caller hangs up.
